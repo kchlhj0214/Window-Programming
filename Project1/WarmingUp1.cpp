@@ -3,12 +3,28 @@
 #include<cctype>
 #include<vector>
 #include<algorithm>
+#include <sstream> 
 using namespace std;
 
 int main()
 {
 	string str;
 	getline(cin, str, '.');			// 문장 입력
+	vector<string> words;
+	string temp = "";
+
+	if (!str.empty()) {				// 문장을 빈칸과 단어로 구분해 한 벡터에 저장
+		temp += str[0];
+		for (int i = 1; i < str.size(); ++i) {
+			if ((str[i] == ' ') != (str[i - 1] == ' ')) {
+				words.push_back(temp);
+				temp = "";
+			}
+			temp += str[i];
+		}
+		words.push_back(temp);
+	}
+
 	int modechange{};					// 3,4 명령어에서 원본/수정본 구분용
 
 	while (1) {
@@ -21,12 +37,29 @@ int main()
 			break;
 
 		if (cmd >= 'a' && cmd <= 'z') {							// 대소문자 변환
-			for (int i = 0; i < str.size(); ++i) {
+			string nextstr = "";
+			/*for (int i = 0; i < str.size(); ++i) {			// 삭제
 				if (str[i] == cmd)
 					str[i] = toupper(str[i]);
 				else if (str[i] == cmd - 32)
 					str[i] = tolower(str[i]);
+			}*/
+
+			for (string& s : words) {
+				if (s[0] != ' ') {								// 현재 문자열(단어)가 공백이 아닌지 확인 후 공백이 아니라면 대소문자 변환
+					for (int i = 0; i < s.size(); ++i) {
+						if (s[i] == cmd)
+							s[i] = toupper(s[i]);
+						else if (s[i] == cmd - 32)
+							s[i] = tolower(s[i]);
+					}
+				}
 			}
+
+			for (string& s : words)								// 수정된 words를 str에 넣고 출력(40자 제한을 위해 str에 복사함)
+				nextstr += s;
+			str = nextstr;
+
 			if (str.size() > 40)
 				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
 			else
@@ -35,20 +68,29 @@ int main()
 
 		if (cmd == '1') {
 			string nextstr = "";
-			for (int i = 0; i < str.size(); ++i) {							// nextstr에 빈칸 제거한 문장 저장 후 str로 옮기기
-				if (str[i] == ' ') {
-					nextstr += ' ';
-					while (i + 1 < str.size() && str[i + 1] == ' ') {		// 빈칸수만큼 저장(나중 삭제)
-						nextstr += ' ';
-						++i;
-					}
-					if (!nextstr.empty() && nextstr.back() == ' ')
-						nextstr.pop_back();
-				}
-				else
-					nextstr += str[i];
+			//for (int i = 0; i < str.size(); ++i) {							// nextstr에 빈칸 제거한 문장 저장 후 str로 옮기기 // 삭제
+			//	if (str[i] == ' ') {
+			//		nextstr += ' ';
+			//		while (i + 1 < str.size() && str[i + 1] == ' ') {		// 빈칸수만큼 저장(나중 삭제)
+			//			nextstr += ' ';
+			//			++i;
+			//		}
+			//		if (!nextstr.empty() && nextstr.back() == ' ')
+			//			nextstr.pop_back();
+			//	}
+			//	else
+			//		nextstr += str[i];
+			//}
+
+			for (string& s : words) {
+				if (s[0] == ' ')
+					s.pop_back();
 			}
+
+			for (string& s : words)
+				nextstr += s;
 			str = nextstr;
+
 			if (str.size() > 40)
 				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
 			else
@@ -57,24 +99,34 @@ int main()
 
 		if (cmd == '2') {
 			string nextstr = "";
-			for (int i = 0; i < str.size(); ++i) {
-				if (str[i] == ' ') {
-					int sc = 0;
-					while (i < str.size() && str[i] == ' ') {		// 현재 빈칸 수 만큼 문장 저장
-						if (sc < 5) {
-							nextstr += ' ';
-							++sc;
-						}
-						++i;
-					}
-					if (sc < 5) nextstr += ' ';						// 빈칸 추가
-					--i;
-				}
-				else {
-					nextstr += str[i];
+			//for (int i = 0; i < str.size(); ++i) {				// 삭제
+			//	if (str[i] == ' ') {
+			//		int sc = 0;
+			//		while (i < str.size() && str[i] == ' ') {		// 현재 빈칸 수 만큼 문장 저장
+			//			if (sc < 5) {
+			//				nextstr += ' ';
+			//				++sc;
+			//			}
+			//			++i;
+			//		}
+			//		if (sc < 5) nextstr += ' ';						// 빈칸 추가
+			//		--i;
+			//	}
+			//	else {
+			//		nextstr += str[i];
+			//	}
+			//}
+			
+			for (string& s : words) {
+				if ((s.empty() || s[0] == ' ') && s.size() < 5) {	// words의 빈칸이 모두 지워져 원소가 비어있거나 공백이 있으면서 공백의 크기가 5를 넘지 않을 때
+					s += ' ';
 				}
 			}
+
+			for (string& s : words)
+				nextstr += s;
 			str = nextstr;
+			
 			if (str.size() > 40)
 				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
 			else
@@ -148,7 +200,7 @@ int main()
 
 				sort(words.begin(), words.end(), [](const string& a, const string& b) {
 					if (a.size() != b.size()) return a.size() < b.size();					// 길이 비교
-					return a < b;															// 길이가 같다면 알파벳 순서 비교
+					return a < b;															// 길이가 같다면 알파벳 순서 비교(아스키코드값 기준으로 대문자 우선 출력(문제에 기준 X))
 					});
 
 				for (auto a : words)
