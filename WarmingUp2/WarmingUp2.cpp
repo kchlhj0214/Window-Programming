@@ -104,20 +104,36 @@ int main()
 				case 72: 
 					if (x > 0) {
 						swap(ary[x], ary[x - 1]);
+						if (enter == 1) {
+							if (curpossave[0] == x) curpossave[0]--;
+							else if (curpossave[0] == x - 1) curpossave[0]++;
+						}
 						--x;
 					}
 					else if(x == 0) {
 						swap(ary[0], ary[9]);
+						if (enter == 1) {
+							if (curpossave[0] == 0) curpossave[0] = 9;
+							else if (curpossave[0] == 9) curpossave[0] = 0;
+						}
 						x = 9;
 					}
 					break;
 				case 80: 
 					if (x < 9) {
 						swap(ary[x], ary[x + 1]);
+						if (enter == 1) {
+							if (curpossave[0] == x) curpossave[0]++;
+							else if (curpossave[0] == x + 1) curpossave[0]--;
+						}
 						++x;
 					}
 					else if (x == 9) {
 						swap(ary[9], ary[0]);
+						if (enter == 1) {
+							if (curpossave[0] == 9) curpossave[0] = 0;
+							else if (curpossave[0] == 0) curpossave[0] = 9;
+						}
 						x = 0;
 					}
 					break;
@@ -125,11 +141,19 @@ int main()
 					if (y > 0) {
 						for (int i = 0; i < 10; ++i)
 							swap(ary[i][y], ary[i][y - 1]);
+						if (enter == 1) {
+							if (curpossave[1] == y) curpossave[1]--;
+							else if (curpossave[1] == y - 1) curpossave[1]++;
+						}
 						--y;
 					}
 					else if (y == 0) {
 						for (int i = 0; i < 10; ++i)
 							swap(ary[i][0], ary[i][9]);
+						if (enter == 1) {
+							if (curpossave[1] == 0) curpossave[1] = 9;
+							else if (curpossave[1] == 9) curpossave[1] = 0;
+						}
 						y = 9;
 					}
 					break;
@@ -137,11 +161,19 @@ int main()
 					if (y < 9) {
 						for (int i = 0; i < 10; ++i)
 							swap(ary[i][y], ary[i][y + 1]);
+						if (enter == 1) {
+							if (curpossave[1] == y) curpossave[1]++;
+							else if (curpossave[1] == y + 1) curpossave[1]--;
+						}
 						++y;
 					}
 					else if (y == 9) {
 						for (int i = 0; i < 10; ++i)
 							swap(ary[i][9], ary[i][0]);
+						if (enter == 1) {
+							if (curpossave[1] == 9) curpossave[1] = 0;
+							else if (curpossave[1] == 0) curpossave[1] = 9;
+						}
 						y = 0;
 					}
 					break;
