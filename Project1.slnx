@@ -5,4 +5,5 @@
   </Configurations>
   <Project Path="Project1/Project1.vcxproj" Id="d5b052fd-d698-4a20-b717-486fa9da4b53" />
   <Project Path="WarmingUp2/WarmingUp2.vcxproj" Id="faa7a871-8c93-47ee-b047-8f5656892280" />
+  <Project Path="WarmingUp3/WarmingUp3.vcxproj" Id="7a8c43a6-c122-45b7-9cb2-de7831a8fcca" />
 </Solution>
