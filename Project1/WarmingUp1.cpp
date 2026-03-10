@@ -4,14 +4,27 @@
 #include<vector>
 #include<algorithm>
 #include <sstream> 
+#include <iomanip>
 using namespace std;
 
 int main()
 {
 	string str;
-	getline(cin, str, '.');			// 문장 입력
 	vector<string> words;
 	string temp = "";
+	while (true) {
+		getline(cin, str, '.');
+
+		if (str.find('\n') != string::npos) {
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			continue;
+		}
+		if (str.size() > 40) {
+			str = str.substr(0, 40);
+		}
+
+		break;
+	}
 
 	if (!str.empty()) {				// 문장을 빈칸과 단어로 구분해 한 벡터에 저장
 		temp += str[0];

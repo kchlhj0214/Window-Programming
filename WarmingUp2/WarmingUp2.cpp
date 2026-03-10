@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <string>
 #include <cctype>		// toupper, tolower
 #include <vector>
@@ -17,9 +17,11 @@ int main()
 	vector<vector<int>> ary(10, vector<int>(10));
 	int x{ uid(g) }, y{ uid(g) };			// 커서 위치
 	int enter{};							// 엔터 명령어 수행 시 숫자를 더할 지 원복할지 결정
-	int bluesave{-1};						// 현재 파란색으로 칠해진 숫자를 저장(만약 0으로 초기화 하면 첫 행렬 출력에 0이 파란색으로 칠해짐)
+	int bluesave[10];						// 현재 파란색으로 칠해진 숫자를 저장(만약 0으로 초기화 하면 첫 행렬 출력에 0이 파란색으로 칠해짐)
 	int entersave{};						// ex) 6 > enter > 8 > enter 입력 시 더한값이 60이지만 뺀 값이 80이 되어 행렬에 음수값이 들어감을 방지하기 위한 변수
 	int curpossave[2];						// ex) 3 > enter > a >> enter 입력 시 숫자가 더해진 위치가 아닌 새로운 커서의 위치의 숫자가 감소함을 방지하기 위한 변수
+	for (int i = 0; i < 10; ++i)
+		bluesave[i] = -1;
 
 	for (int i = 0; i < 10; ++i) {			// 초기 행렬 생성
 		vector<int> row = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -46,16 +48,19 @@ int main()
 
 		for (int i = 0; i < 10; ++i) {					// 콘솔 창 새로 그리기
 			for (int j = 0; j < 10; ++j) {
+				int currentVal = ary[i][j];
 				if (i == x && j == y) {
 					SetConsoleTextAttribute(hConsole, 12); // 커서: 빨강
 				}
-				else if (ary[i][j] == bluesave) {
-					SetConsoleTextAttribute(hConsole, 9);  // 찾은 숫자: 파랑 (밝은 파랑은 9, 일반은 1)
+				else if (currentVal >= 0 && currentVal <= 9 && bluesave[currentVal] != -1) {
+						SetConsoleTextAttribute(hConsole, 9);  // 찾은 숫자: 파랑 (밝은 파랑은 9, 일반은 1)
 				}
 				else {
 					SetConsoleTextAttribute(hConsole, 15); // 기본: 흰색
 				}
-				cout << ary[i][j] << " ";
+					cout << ary[i][j] << " ";
+					if (j == 9)
+						cout << "      ";
 			}
 			cout << endl;
 		}
@@ -65,10 +70,10 @@ int main()
 
 			if (key >= '0' && key <= '9') {
 				int CharToInt = key - '0';
-				if (bluesave == CharToInt)
-					bluesave = -1;
+				if (bluesave[CharToInt] == CharToInt)
+					bluesave[CharToInt] = -1;
 				else
-					bluesave = CharToInt;
+					bluesave[CharToInt] = CharToInt;
 			}
 			
 			// wasd 커서 위치 이동
@@ -83,17 +88,21 @@ int main()
 			// 엔터 명령어
 			if (key == 13) {
 				if (enter == 0) {
-					if (bluesave != -1) {
-						entersave = bluesave;
-						curpossave[0] = x;
-						curpossave[1] = y;
-						ary[x][y] += 10 * entersave;
-						++enter;
+					for (int i = 0; i < 10; ++i) {
+						if (bluesave[i] != -1) {
+							entersave += bluesave[i];
+							curpossave[0] = x;
+							curpossave[1] = y;
+							
+						}
 					}
+					ary[x][y] += 10 * entersave;
+					++enter;
 				}
-				else if (enter == 1) {
+				else if (enter != 0) {
 					ary[curpossave[0]][curpossave[1]] -= 10 * entersave;
-					--enter;
+					enter = 0;
+					entersave = 0;
 				}
 			}
 
@@ -188,7 +197,8 @@ int main()
 					ary[i] = row;
 				}
 
-				bluesave = -1;
+				for(int i = 0; i < 10; ++i)
+					bluesave[i] = -1;
 				enter = 0;
 				entersave = 0;
 				x = uid(g);
