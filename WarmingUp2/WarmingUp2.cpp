@@ -41,6 +41,10 @@ int main()
 	}
 
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);			// hConsole에 콘솔창을 다루는 권한을 줌
+	CONSOLE_CURSOR_INFO cursorInfo;
+	GetConsoleCursorInfo(hConsole, &cursorInfo);
+	cursorInfo.bVisible = FALSE;
+	SetConsoleCursorInfo(hConsole, &cursorInfo);
 
 	while (1) {
 		COORD pos = { 0, 0 };
