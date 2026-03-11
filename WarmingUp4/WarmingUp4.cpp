@@ -13,11 +13,14 @@ mt19937 g(rd());
 uniform_int_distribution<> uid{ 0, 19 };
 
 int main()
-{
+{	
+	RESET_ALL:
 	vector<vector<int>> ary(20, vector<int>(20));
 	vector<vector<int>> originAry(20, vector<int>(20)); // 원본 맵 저장용
-
+	
 	int obsPos[3][2];		// 장애물 3개의 좌측 상단 모서리 좌표
+
+	
 
 	REPOS_ONE:				// 3x4
 	obsPos[0][0] = uid(g);	// 행
@@ -173,14 +176,8 @@ int main()
 			int key = _getch();
 
 			if (key == 'r') {
-				ary = originAry;
-				player[0][0] = originPlayer[0][0];
-				player[0][1] = originPlayer[0][1];
-				player[1][0] = originPlayer[1][0];
-				player[1][1] = originPlayer[1][1];
-				player1 = 0;
-				player2 = 0;
-				continue;
+				system("cls");
+				goto RESET_ALL;
 			}
 
 			int nextR = player[0][0];

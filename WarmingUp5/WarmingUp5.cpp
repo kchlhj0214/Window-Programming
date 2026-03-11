@@ -114,51 +114,59 @@ void ReservMovie() {
 
 	
 	int sa[4]{-1, -1, -1, -1}, sb[4]{-1, -1, -1, -1};
-	for (int i = 0; i < seatscnt; ++i) {
-		cout << "          - Seat You Want : ";
-		if (!(cin >> sa[i] >> sb[i])) {
-			cin.clear();
-			string input;
-			cin >> input;
+	cout << "          - Seat You Want : ";
+	cin >> sa[0] >> sb[0];
+	--sa[0];
+	--sb[0];
+	if (movie[mn].MovieSeats[mt][sa[0]][sb[0]] == 0) {
+		for (int i = 1; i < seatscnt; ++i) {
+			sa[i] = sa[i - 1];
+			sb[i] = sb[i - 1] + 1;
+			//if (!(cin >> sa[i] >> sb[i])) {
+			//	cin.clear();
+			//	string input;
+			//	cin >> input;
 
-			if (input == "r") {				// 좌석 선택 도중 r 입력시 초기화 후 명령어 칸으로 이동(한번 좌석선택으로 넘어오면 좌석을 모두 선택 후 예매해야 다음으로 넘어가지는 현상 방지)
+			//	if (input == "r") {				// 좌석 선택 도중 r 입력시 초기화 후 명령어 칸으로 이동(한번 좌석선택으로 넘어오면 좌석을 모두 선택 후 예매해야 다음으로 넘어가지는 현상 방지)
+			//		return;
+			//	}
+			//	else {
+			//		cin.ignore(1000, '\n');
+			//		--i;
+			//		continue;
+			//	}
+			//}
+			//cin.ignore(1000, '\n');
+
+
+			int r = sa[i];
+			int c = sb[i];
+
+			bool isInvalid = false;
+
+			if (r < 0 || r > 9 || c < 0 || c > 9 || movie[mn].MovieSeats[mt][r][c] != 0) {
+				cout << "          - " << sa[i] + 1 << ", " << sb[i] + 1 << " is already selected or does not exist" << endl;
 				return;
 			}
-			else {
-				cin.ignore(1000, '\n');
+
+			/*if (!isInvalid) {
+				for (int j = 0; j < i; ++j) {
+					if (sa[j] == r && sb[j] == c) {
+						cout << "          - You've already chosen your " << sa[i] << ", " << sb[i] << endl;
+						isInvalid = true;
+						break;
+					}
+				}
+			}*/
+
+			if (isInvalid) {
 				--i;
 				continue;
 			}
+
+			sa[i] = r;
+			sb[i] = c;
 		}
-		cin.ignore(1000, '\n');
-
-		int r = sa[i] - 1;
-		int c = sb[i] - 1;
-
-		bool isInvalid = false;
-
-		if (r < 0 || r > 9 || c < 0 || c > 9 || movie[mn].MovieSeats[mt][r][c] != 0) {
-			cout << "          - " << sa[i] << ", " << sb[i] << " is already selected or does not exist" << endl;
-			isInvalid = true;
-		}
-
-		if (!isInvalid) {
-			for (int j = 0; j < i; ++j) {
-				if (sa[j] == r && sb[j] == c) {
-					cout << "          - You've already chosen your " << sa[i] << ", " << sb[i] << endl;
-					isInvalid = true;
-					break;
-				}
-			}
-		}
-
-		if (isInvalid) {
-			--i;
-			continue;
-		}
-
-		sa[i] = r;
-		sb[i] = c;
 	}
 
 	int reservNum{};

@@ -12,15 +12,22 @@ int main()
 	string str;
 	vector<string> words;
 	string temp = "";
+	int strLen{40};
+	vector<char> temppp;
+
+	vector<string> recovWords;
+	
 	while (true) {
 		getline(cin, str, '.');
+
+		
 
 		if (str.find('\n') != string::npos) {
 			cin.ignore(numeric_limits<streamsize>::max(), '\n');
 			continue;
 		}
-		if (str.size() > 40) {
-			str = str.substr(0, 40);
+		if (str.size() > strLen) {
+			str = str.substr(0, strLen);
 		}
 
 		break;
@@ -36,6 +43,7 @@ int main()
 			temp += str[i];
 		}
 		words.push_back(temp);
+		recovWords.push_back(temp);
 	}
 	temp = "";
 
@@ -72,8 +80,8 @@ int main()
 				nextstr += s;
 			str = nextstr;
 
-			if (str.size() > 40)
-				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
+			if (str.size() > strLen)
+				cout << str.substr(0, strLen) << '.' << endl;		// 40개 문자만 출력
 			else
 				cout << str << '.' << endl;
 		}
@@ -106,7 +114,9 @@ int main()
 					words[i].pop_back();
 			}*/
 
-			for (int i = 0; i < (int)words.size() - 1; ++i) {
+			int abc{};
+
+			for (int i = 0; i < (int)words.size(); ++i) {
 				if (words[i][0] == ' ') {
 					if (!words[i].empty()) {
 						words[i].pop_back();
@@ -120,13 +130,24 @@ int main()
 					}
 				}
 			}
+			if (words[(int)words.size() - 1].size() > 1) {
+				for (int i = 0; i < (int)words.size(); ++i) {
+					if (words[i][0] == NULL)
+						++abc;
+				}
+
+				if (abc == (int)words.size() - 1) {
+					temppp.push_back(words[(int)words.size() - 1][0]);
+					words[(int)words.size() - 1].erase(0, 1);
+				}
+			}
 
 			for (string& s : words)
 				nextstr += s;
 			str = nextstr;
 
-			if (str.size() > 40)
-				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
+			if (str.size() > strLen)
+				cout << str.substr(0, strLen) << '.' << endl;		// 40개 문자만 출력
 			else
 				cout << str << '.' << endl;
 		}
@@ -135,24 +156,45 @@ int main()
 			string nextstr = "";
 
 			for (int i = 0; i < words.size(); ++i) {
-				if (i % 2 == space && words[i].size() < 5)
+				// 1. 공백 추가 로직
+				if (i % 2 == space && words[i].size() < 20)
 					words[i] += ' ';
+
+				// 2. recovWords 복구 로직 (인덱스 안전 장치 추가)
+				if (i % 2 == 0 && i < 3 && i < recovWords.size()) { // size 체크 추가
+					if (!recovWords[i].empty()) {
+						// i % 2 대신 i를 사용하여 일관성 유지
+						char recoveryChar = recovWords[i].back();
+						recovWords[i].pop_back();
+
+						words[i].insert(0, 1, recoveryChar);
+					}
+				}
 			}
 
-			for (string& s : words)
+			// 3. temppp 복구 (words가 비어있지 않을 때만)
+			if (!temppp.empty() && !words.empty()) {
+				char recoveryChar = temppp.back();
+				temppp.pop_back();
+
+				words.back().insert(0, 1, recoveryChar);
+			}
+
+			// 결과 합치기 및 출력
+			for (const string& s : words)
 				nextstr += s;
 			str = nextstr;
 
-			if (str.size() > 40)
-				cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
+			if (str.size() > strLen)
+				cout << str.substr(0, strLen) << '.' << endl;
 			else
 				cout << str << '.' << endl;
 		}
 
 		if (cmd == '3') {
 			if (modechange) {
-				if (str.size() > 40)
-					cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
+				if (str.size() > strLen)
+					cout << str.substr(0, strLen) << '.' << endl;		// 40개 문자만 출력
 				else
 					cout << str << '.' << endl;
 				modechange = 0;
@@ -175,7 +217,7 @@ int main()
 						oc = oc + 2;
 						if (v[i] > 9)
 							++oc;
-						if (oc > 40)
+						if (oc > strLen)
 							break;
 					}
 				}
@@ -186,7 +228,7 @@ int main()
 						oc = oc + 2;
 						if (v[i] > 9)
 							++oc;
-						if (oc > 40)
+						if (oc > strLen)
 							break;
 					}
 				}
@@ -197,8 +239,8 @@ int main()
 
 		if (cmd == '4') {
 			if (modechange) {
-				if (str.size() > 40)
-					cout << str.substr(0, 40) << '.' << endl;		// 40개 문자만 출력
+				if (str.size() > strLen)
+					cout << str.substr(0, strLen) << '.' << endl;		// 40개 문자만 출력
 				else
 					cout << str << '.' << endl;
 				modechange = 0;
@@ -232,9 +274,9 @@ int main()
 				if (curLen > n)					// 문자열 잘라내기
 					str = str.substr(0, n);
 				else if (curLen < n) {			// 문자열 공백으로 추가(40글자 제한 X)
-					int diff = n - curLen;
-					for (int i = 0; i < diff; ++i)
-						str += ' ';
+					//int diff = n - curLen;
+					//for (int i = 0; i < diff; ++i)
+					strLen = n;
 				}
 			}
 
