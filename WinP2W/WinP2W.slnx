@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="WinP2W/WinP2W.vcxproj" Id="a67415d6-5489-44e5-9344-c2657a4f65e8" />
+  <Project Path="WInP2W_1_2/WInP2W_1_2.vcxproj" Id="7e8aa5e1-b064-453a-ae33-ffe0487a9e3d" />
+  <Project Path="WinP2W_1_3/WinP2W_1_3.vcxproj" Id="fe0a74f9-d263-48a7-8405-7f380238609d" />
+  <Project Path="WinP3W_2_1/WinP3W_2_1.vcxproj" Id="1e78be7b-612b-4d96-9567-b1d8f99f739d" />
+  <Project Path="WinP3W_2_2/WinP3W_2_2.vcxproj" Id="f75087aa-653b-4208-8b93-a5bdad7c7dbc" />
+</Solution>
