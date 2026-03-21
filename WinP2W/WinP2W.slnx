@@ -8,4 +8,6 @@
   <Project Path="WinP2W_1_3/WinP2W_1_3.vcxproj" Id="fe0a74f9-d263-48a7-8405-7f380238609d" />
   <Project Path="WinP3W_2_1/WinP3W_2_1.vcxproj" Id="1e78be7b-612b-4d96-9567-b1d8f99f739d" />
   <Project Path="WinP3W_2_2/WinP3W_2_2.vcxproj" Id="f75087aa-653b-4208-8b93-a5bdad7c7dbc" />
+  <Project Path="WinP3W_2_3/WinP3W_2_3.vcxproj" Id="2f1c7d6f-7bd3-4ed7-b41f-41aa32499b24" />
+  <Project Path="WinP3W_2_3_1/WinP3W_2_3_1.vcxproj" Id="f082a06c-f39c-4936-ae0e-5e96dba1fb75" />
 </Solution>

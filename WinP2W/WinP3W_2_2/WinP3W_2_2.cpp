@@ -6,7 +6,9 @@
 using namespace std;
 random_device rd;
 mt19937 g(rd());
-uniform_int_distribution<> uid{ 0, 650 };
+uniform_int_distribution<> uid{ 2, 12 };		// 800 600 기준 12단까지
+#define LEN 800
+#define HEI 600
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
@@ -33,7 +35,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	WndClass.lpszClassName = lpszClass;
 	WndClass.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 	RegisterClassEx(&WndClass);
-	hWnd = CreateWindow(lpszClass, lpszWindowName, WS_OVERLAPPEDWINDOW, 0, 0, 800, 600, NULL, (HMENU)NULL, hInstance, NULL);
+	hWnd = CreateWindow(lpszClass, lpszWindowName, WS_OVERLAPPEDWINDOW, 0, 0, LEN, HEI, NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 	while (GetMessage(&Message, 0, 0, 0)) {
@@ -48,30 +50,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
 	HDC hDC;
-	TCHAR lpOut[100] = L"2x9 = 18";
-	int num;
+	TCHAR lpOut[100];
+	static int num = uid(g);
+	int dividedPos = LEN / (num - 1);
+	RECT rect;
 
 	switch (uMsg) {
 	case WM_CREATE:
 		break;
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
+		
+		for (int i = 0; i < num - 1; ++i) {
+			rect.left = (0 + dividedPos * i);
+			rect.top = 0;
+			rect.right = (dividedPos + dividedPos * i);
+			rect.bottom = HEI / 2;
 
-		TextOut(hDC, 0, 0, lpOut, lstrlen(lpOut));			// x최소간격 70, y간격 30
-		TextOut(hDC, 70, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 140, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 210, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 280, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 350, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 420, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 490, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 560, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 630, 0, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 700, 0, lpOut, lstrlen(lpOut));
+			for (int j = 1; j <= 9; ++j) {
+				wsprintf(lpOut, L"%dx%d = %d\n", i + 2, j, (i + 2) * j);
+				DrawText(hDC, lpOut, lstrlen(lpOut), &rect, DT_LEFT | DT_TOP);
+				rect.top += 30;
+			}
+		}
 
-		TextOut(hDC, 0, 30, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 0, 240, lpOut, lstrlen(lpOut));
-		TextOut(hDC, 0, 510, lpOut, lstrlen(lpOut));
+		for (int i = 0; i < num - 1; ++i) {
+			rect.left = (0 + dividedPos * i);
+			rect.top = HEI / 2;
+			rect.right = (dividedPos + dividedPos * i);
+			rect.bottom = HEI;
+
+			for (int j = 1; j <= 9; ++j) {
+				wsprintf(lpOut, L"%dx%d = %d\n", (num - i), j, (num - i) * j);
+				DrawText(hDC, lpOut, lstrlen(lpOut), &rect, DT_LEFT | DT_TOP);
+				rect.top += 30;
+			}
+		}
 
 		EndPaint(hWnd, &ps);
 		break;
