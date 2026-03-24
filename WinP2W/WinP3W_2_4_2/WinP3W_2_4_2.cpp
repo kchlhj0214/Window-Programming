@@ -1,15 +1,18 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
 
 using namespace std;
-random_device rd;
-mt19937 g(rd());
-uniform_int_distribution<> uid{ 2, 20 };		// 800 600 기준 12단까지
-uniform_int_distribution<> uid2{ 0, 255 };
 #define LEN 800
 #define HEI 600
+random_device rd;
+mt19937 g(rd());
+uniform_int_distribution<> uid{ 0, 700 };		// 800 600 기준 12단까지
+uniform_int_distribution<> uid2{ 0, 255 };
+uniform_int_distribution<> uid3{ 100, LEN / 2 };
+uniform_int_distribution<> uid4{ 100, HEI / 2 };
+uniform_int_distribution<> uid5{ 65, 90 };		// 대문자 아스키 코드
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
@@ -51,45 +54,70 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
 	HDC hDC;
-	TCHAR lpOut[100];
-	static int num = uid(g);
+	static TCHAR lpOut[4][100];
+	static int num = uid5(g);
 	RECT rect;
 	static vector<COLORREF> colors;
-	static int danPos = 21;
 	int rgbnum = 0;
-	RECT clientRect;
-	int winWidth;
-	int winHeight;
-	int dividedPos;
+
+	static int rectWidth = uid3(g);
+	static int rectHeight = uid4(g);
+	static int x;
+	static int y;
 
 	switch (uMsg) {
 	case WM_CREATE:
 		for (int i = 0; i < (num - 1) * 9; ++i)
 			colors.push_back(RGB(uid2(g), uid2(g), uid2(g)));
-		
+
+		while (1) {
+			x = uid(g);
+			y = uid(g);
+			if (x < LEN - rectWidth - 30 && y < HEI - rectHeight - 40)
+				break;
+		}
+
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 99; ++j) {
+				lpOut[i][j] = uid5(g);
+			}
+			lpOut[i][99] = _T('\0');
+		}
 		break;
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
 
-		GetClientRect(hWnd, &clientRect);
-		winWidth = clientRect.right;
-		winHeight = clientRect.bottom;
+		rect.left = x;
+		rect.top = y;
+		rect.right = x + rectWidth;
+		rect.bottom = y + 20;
 
-		dividedPos = winWidth / num;
+		SetTextColor(hDC, colors[rgbnum++]);
+		DrawText(hDC, lpOut[0], lstrlen(lpOut[0]), &rect, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-		while(danPos > num)
-			danPos = uid(g) - 1;
+		rect.left = x;
+		rect.top = y;
+		rect.right = x + 15;
+		rect.bottom = y + rectHeight;
 
-		for (int i = 0; i < 9; ++i) {
-			SetTextColor(hDC, colors[rgbnum]);
-			wsprintf(lpOut, L"%dx%d = %d", num, i + 1, (i + 1) * num);
+		SetTextColor(hDC, colors[rgbnum++]);
+		DrawText(hDC, lpOut[1], lstrlen(lpOut[1]), &rect, DT_LEFT | DT_TOP | DT_WORDBREAK | DT_EDITCONTROL);
 
-			int x = (dividedPos * (danPos - 1)) + (i * 20);
-			int y = 50 + (i * 30);
+		rect.left = x + rectWidth;
+		rect.top = y;
+		rect.right = x + rectWidth + 15;
+		rect.bottom = y + rectHeight;
 
-			TextOut(hDC, x, y, lpOut, lstrlen(lpOut));
-			++rgbnum;
-		}
+		SetTextColor(hDC, colors[rgbnum++]);
+		DrawText(hDC, lpOut[2], lstrlen(lpOut[2]), &rect, DT_LEFT | DT_TOP | DT_WORDBREAK | DT_EDITCONTROL);
+
+		rect.left = x;
+		rect.top = y + rectHeight;
+		rect.right = x + rectWidth;
+		rect.bottom = y + rectHeight + 20;
+
+		SetTextColor(hDC, colors[rgbnum++]);
+		DrawText(hDC, lpOut[3], lstrlen(lpOut[3]), &rect, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
 		EndPaint(hWnd, &ps);
 		break;
@@ -99,45 +127,3 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
-
-//LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-//
-//{
-//	PAINTSTRUCT ps;
-//	HDC hDC;
-//	TCHAR lpOut[100];
-//	static int num = uid(g);
-//	int dividedPos = LEN / num;
-//	static vector<COLORREF> colors;
-//	static int danPos = 21;
-//	int rgbnum = 0;
-//
-//	switch (uMsg) {
-//	case WM_CREATE:
-//		for (int i = 0; i < (num - 1) * 9; ++i)
-//			colors.push_back(RGB(uid2(g), uid2(g), uid2(g)));
-//		break;
-//	case WM_PAINT:
-//
-//		hDC = BeginPaint(hWnd, &ps);
-//
-//		while (danPos > num)
-//			danPos = uid(g) - 1;
-//
-//		for (int i = 0; i < 9; ++i) {
-//			SetTextColor(hDC, colors[rgbnum]);
-//			wsprintf(lpOut, L"%dx%d = %d", num, i + 1, (i + 1) * num);
-//			int x = (dividedPos * (danPos - 1)) + (i * 20);
-//			int y = 50 + (i * 30);
-//		
-//			TextOut(hDC, x, y, lpOut, lstrlen(lpOut));
-//			++rgbnum;
-//		}
-//		EndPaint(hWnd, &ps);
-//		break;
-//	case WM_DESTROY:
-//		PostQuitMessage(0);
-//		break;
-//	}
-//	return DefWindowProc(hWnd, uMsg, wParam, lParam);
-//}
