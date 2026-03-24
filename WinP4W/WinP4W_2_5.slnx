@@ -3,5 +3,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="WinP4W_2_5/WinP4W_2_5.vcxproj" />
+  <Project Path="WinP4W_2_5/WinP4W_2_5.vcxproj" Id="845fad7d-87d0-43ba-b118-4a58931979bd" />
+  <Project Path="WinP4W_2_6/WinP4W_2_6.vcxproj" Id="6f6cce0f-a88a-44fd-87c9-42e55e2336f6" />
 </Solution>
