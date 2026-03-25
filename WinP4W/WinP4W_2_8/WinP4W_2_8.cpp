@@ -1,4 +1,4 @@
-﻿#include <windows.h>
+#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -53,68 +53,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
 	HDC hDC;
-	static TCHAR str[5][21] = {0};
+	static TCHAR str[10][31] = { 0 };
 	static int count = 0;
-	static int yPos = 0;
 	static SIZE size;
 	static int line = 0;
-	static int x, y;
-	static BYTE r_c, g_c, b_c;
 
-	
+
 
 	switch (uMsg) {
 	case WM_CREATE:
-		x = uid(g);
-		y = uid(g) % 500;
-		r_c = (BYTE)uid2(g2);
-		g_c = (BYTE)uid2(g2);
-		b_c = (BYTE)uid2(g2);
 		CreateCaret(hWnd, NULL, 2, 15);
 		ShowCaret(hWnd);
-		break;
-	case WM_KEYDOWN:
-		if (wParam == VK_ESCAPE) {
-			PostQuitMessage(0);
-		}
 		break;
 	case WM_CHAR:
 		hDC = GetDC(hWnd);
 
 		if (wParam == VK_BACK) {
-			if (count > 0){
+			if (count > 0) {
 				--count;
 				str[line][count] = '\0';
 			}
-			else if(line > 0){
+			else if (line > 0) {
 				--line;
 				count = lstrlen(str[line]);
 			}
 		}
+		else if (wParam == VK_ESCAPE) {
+			count = 0;
+			line = 0;
+			memset(str, 0, sizeof(str));
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
 		else if (wParam == VK_RETURN) {
-			if (yPos + ((line + 1) * 20) + y < HEI - 50)
-				yPos += 20;
+			if (line < 9) {
+				++line;
+				count = 0;
+			}
 		}
 		else {
-			if (count < 20) {
+			if (count < 30) {
 				str[line][count++] = wParam;
 				str[line][count] = '\0';
-				
+
 			}
 			else {
-				if (line < 4 && yPos + ((line + 1) * 20) + y < HEI - 50) {	// yPos + ((line + 1) * 20) + y < HEI - 50 이 조건이 없다면 현재 입력된 문자열의 끝 줄이 맨 아래까지 이동하더라도 총 줄의 수가 5보다 작다면 화면 밖에 문자열을 추가함
-					count = 0;
-					++line;
-					str[line][count++] = wParam;
-					str[line][count] = '\0';
-				}
-				else if(line < 4){
-					y -= 20;
-					count = 0;
-					++line;
-					str[line][count++] = wParam;
-					str[line][count] = '\0';
-				}
+				count = 0;
+				++line;
+				str[line][count++] = wParam;
+				str[line][count] = '\0';
 			}
 		}
 
@@ -122,15 +108,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_PAINT:
-			hDC = BeginPaint(hWnd, &ps);
-			SetTextColor(hDC, RGB(r_c, g_c, b_c));
-			for (int i = 0; i <= line; ++i) {
-				TextOut(hDC, x, yPos + (i * 20) + y, str[i], lstrlen(str[i]));
-			}
-			GetTextExtentPoint32(hDC, str[line], lstrlen(str[line]), &size);
-			SetCaretPos(size.cx + x, yPos + y + (line * 20));
-			EndPaint(hWnd, &ps);
-			break;
+		hDC = BeginPaint(hWnd, &ps);
+		for (int i = 0; i <= line; ++i) {
+			TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		}
+		GetTextExtentPoint32(hDC, str[line], lstrlen(str[line]), &size);
+		SetCaretPos(size.cx, line * 20);
+		EndPaint(hWnd, &ps);
+		break;
 	case WM_DESTROY:
 		HideCaret(hWnd);
 		DestroyCaret();

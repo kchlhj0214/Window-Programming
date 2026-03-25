@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -53,30 +53,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
 	HDC hDC;
-	static TCHAR str[5][21] = { 0 };
+	static TCHAR str[10][31] = { 0 };
+	static TCHAR tempstr[10][31] = { 0 };
 	static int count = 0;
-	static int yPos = 0;
+	static int tempcount = 0;
 	static SIZE size;
 	static int line = 0;
-	static int x, y;
-	static BYTE r_c, g_c, b_c;
-
+	static int templine = 0;
+	static int repeat = 0;
+	static int saveLen[10] = { 0 };
 
 
 	switch (uMsg) {
 	case WM_CREATE:
-		x = uid(g);
-		y = uid(g) % 500;
-		r_c = (BYTE)uid2(g2);
-		g_c = (BYTE)uid2(g2);
-		b_c = (BYTE)uid2(g2);
 		CreateCaret(hWnd, NULL, 2, 15);
 		ShowCaret(hWnd);
-		break;
-	case WM_KEYDOWN:
-		if (wParam == VK_ESCAPE) {
-			PostQuitMessage(0);
-		}
 		break;
 	case WM_CHAR:
 		hDC = GetDC(hWnd);
@@ -84,44 +75,80 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		if (wParam == VK_BACK) {
 			if (count > 0) {
 				--count;
-				str[line][count] = '\0';
+				str[line][count] = ' ';
+				if (count + 1 == saveLen[line]) {
+					saveLen[line] = count;
+				}
 			}
 			else if (line > 0) {
 				--line;
 				count = lstrlen(str[line]);
 			}
 		}
-		else if (wParam == VK_RETURN) {
-			if (yPos + ((line + 1) * 20) + y < HEI - 50)
-				yPos += 20;
+		else if (wParam == VK_ESCAPE) {
+			count = 0;
+			line = 0;
+			repeat = 0;
+			memset(str, 0, sizeof(str));
+			memset(saveLen, 0, sizeof(saveLen));
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
-		else {
-			if (count < 20) {
-				str[line][count++] = wParam;
-				str[line][count] = '\0';
-
+		else if (wParam == VK_RETURN) {
+			if (line < 9) {
+				if(saveLen[line] < count)
+					saveLen[line] = count;
+				++line;
+				count = 0;
 			}
 			else {
-				if (line < 4 && yPos + ((line + 1) * 20) + y < HEI - 50) {	// yPos + ((line + 1) * 20) + y < HEI - 50 이 조건이 없다면 현재 입력된 문자열의 끝 줄이 맨 아래까지 이동하더라도 총 줄의 수가 5보다 작다면 화면 밖에 문자열을 추가함
+				if (saveLen[line] < count)
+					saveLen[line] = count;
+				count = 0;
+				line = 0;
+				repeat = 1;
+			}
+		}
+		else {
+			if (count < 30) {
+				str[line][count++] = wParam;
+				if (count > saveLen[line]) {
+					saveLen[line] = count;
+				}
+			}
+			else {
+				if (line < 9) {
+					saveLen[line] = count;
 					count = 0;
 					++line;
 					str[line][count++] = wParam;
-					str[line][count] = '\0';
+				}
+				else {
+					saveLen[line] = count;
+					count = 0;
+					line = 0;
+					repeat = 1;
 				}
 			}
 		}
-
-		str[line][count] = '\0';
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
-		SetTextColor(hDC, RGB(r_c, g_c, b_c));
-		for (int i = 0; i <= line; ++i) {
-			TextOut(hDC, x, yPos + (i * 20) + y, str[i], lstrlen(str[i]));
+
+		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
+
+		if (repeat == 0) {
+			for (int i = 0; i <= line; ++i) {
+				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+			}
 		}
-		GetTextExtentPoint32(hDC, str[line], lstrlen(str[line]), &size);
-		SetCaretPos(size.cx + x, yPos + y + (line * 20));
+		else {
+			for (int i = 0; i <= 9; ++i) {
+				TextOut(hDC, 0, i * 20, str[i], saveLen[i]);
+			}
+		}
+		GetTextExtentPoint32(hDC, str[line], count, &size);
+		SetCaretPos(size.cx, line * 20);
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY:
