@@ -135,7 +135,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
 
-		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
+		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));		// 출력되는 모든 글자의 간격을 동일하게 만듦
 
 		if (repeat == 0) {
 			for (int i = 0; i <= line; ++i) {
