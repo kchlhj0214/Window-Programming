@@ -63,7 +63,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static int repeat = 0;
 	static int saveLen[10] = { 0 };
 	static int insertCheck = 0;
-
+	bool f1_on = false;
+	bool f2_on = false;
+	bool f3_on = false;
+	bool f4_on = false;
+	bool f5_on = false;
+	bool f6_on = false;
+	bool f7_on = false;
+	bool f8_on = false;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -71,40 +78,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		ShowCaret(hWnd);
 		break;
 	case WM_KEYDOWN:
-		if (wParam == VK_LEFT && str[line][count - 1] != '\0') {
+		if (wParam == VK_LEFT && str[line][count - 1] != ' ' && str[line][count - 1] != '\0') {
 			if (count > 0)
 				--count;
 		}
 		else if (wParam == VK_UP) {
-			/*if (line > 0 && count != 0) {
-				if (count <= lstrlen(str[line - 1]) && str[line - 1][count - 1] != ' ' && str[line - 1][count - 1] != '\0')
-					--line;
-			}
-			else if (line > 0 && count == 0) {
-				if (count <= lstrlen(str[line - 1]) && str[line - 1][count] != ' ' && str[line - 1][count] != '\0')
-					--line;
-			}*/
-			if (line > 0 && str[line - 1][count] != '\0')
+			if (line > 0 && str[line - 1][count] != '\0' && str[line - 1][count] != ' ')
 				--line;
-			else if (line > 0 && count > 0 && str[line - 1][count - 1] != '\0')
+			else if (line > 0 && count > 0 && str[line - 1][count - 1] != '\0' && str[line - 1][count - 1] != ' ')
 				--line;
 		}
 		else if (wParam == VK_RIGHT) {
-			if (count < lstrlen(str[line]) && str[line][count] != '\0')
+			if (count < lstrlen(str[line]) && str[line][count] != ' ' && str[line][count] != '\0')
 				++count;
 		}
 		else if (wParam == VK_DOWN) {
-			/*if (line < 9) {
-				int downLen = lstrlen(str[line + 1]);
-				if (count < lstrlen(str[line + 1]) && str[line + 1][count] != ' ' && str[line + 1][count] != '\0')
-					++line;
-				else if (downLen > 0 || lstrlen(str[line]) != 0) {
-					++line;
-					count = 0;
-				}
-			}
-			if (count > lstrlen(str[line]))
-				count = lstrlen(str[line]);*/
 			if (line < 9) {
 				if (str[line + 1][count] != '\0' && str[line + 1][count] != ' ')
 					++line;
@@ -172,69 +160,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			else
 				insertCheck = 0;
 		}
-		/*else if (wParam == VK_DELETE) {
-			int wordcount = 0;
-
-			tempcount = count;
-			templine = line;
-			while (str[templine][tempcount] != ' ') {
-				if (tempcount > 0) {
-					--tempcount;
-					++wordcount;
-				}
-				else {
-					--templine;
-					++wordcount;
-					tempcount = lstrlen(str[templine]);
-				}
-			}
-
-			tempcount = count;
-			templine = line;
-			while (str[templine][tempcount + 1] != ' ') {
-				if (tempcount < 30) {
-					++tempcount;
-					++wordcount;
-				}
-				else {
-					++templine;
-					++wordcount;
-					tempcount = 0;
-				}
-			}
-
-			while (templine != 9 || tempcount != 30) {
-				int tempwordcount = wordcount;
-				int movecount = tempcount;
-				int moveline = templine;
-				while (tempwordcount != 0) {
-					if (movecount > 0) {
-						--movecount;
-						--tempwordcount;
-					}
-					else if (movecount == 0 && moveline > 0) {
-						--moveline;
-						while (lstrlen(str[moveline]) == 0 && moveline > 0)
-							--moveline;
-						movecount = lstrlen(str[moveline]);
-						--tempwordcount;
-					}
-					else if (movecount == 0 && moveline == 0)
-						wordcount -= tempwordcount;
-				}
-
-				str[moveline][movecount] = str[templine][tempcount];
-
-				if(tempcount < 30)
-					++tempcount;
-				else {
-					++templine;
-					while (lstrlen(str[templine]) == 0 && templine < 9) 
-						++templine;
-					tempcount = 0;
-				}
-			}
-		}*/
 		else if (wParam == VK_DELETE) {
 			if (str[line][count] != ' ' && str[line][count] != '\0') {
 				TCHAR flat[311] = { 0 };
@@ -305,6 +230,61 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == VK_ESCAPE) {
 			PostQuitMessage(0);
 		}
+		else if (wParam == VK_F1) {
+			if (f1_on == false)
+				f1_on = true;
+			else
+				f1_on = false;
+		}
+		else if (wParam == VK_F2) {
+			if (f2_on == false)
+				f2_on = true;
+			else
+				f2_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F3) {
+			if (f3_on == false)
+				f3_on = true;
+			else
+				f3_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F4) {
+			if (f4_on == false)
+				f4_on = true;
+			else
+				f4_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F5) {
+			if (f5_on == false)
+				f5_on = true;
+			else
+				f5_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F6) {
+			if (f6_on == false)
+				f6_on = true;
+			else
+				f6_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F7) {
+			if (f7_on == false)
+				f7_on = true;
+			else
+				f7_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F8) {
+			if (f8_on == false)
+				f8_on = true;
+			else
+				f8_on = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
 
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
@@ -312,67 +292,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		hDC = GetDC(hWnd);
 
 		if (wParam == VK_BACK) {
-			/*if (count == 0) {
-				if (line > 0) {
-					--line;
-					count = saveLen[line];
-				}
-				InvalidateRect(hWnd, NULL, TRUE);
-				break;
-			}*/
 			if (count > 0) {
-				/*TCHAR flat[311] = { 0 };
-				int writeIdx = 0;
-				int flatCursor = 0;
-
-				for (int i = 0; i < 10; i++) {
-					if (i < line) flatCursor += lstrlen(str[i]);
-					else if (i == line) flatCursor += count;
-
-					for (int j = 0; j < 30; j++) {
-						if (str[i][j] != '\0') {
-							flat[writeIdx++] = str[i][j];
-						}
-					}
-				}
-				flat[writeIdx] = '\0';
-
-				int deleteIdx = flatCursor - 1;
-
-				if (deleteIdx >= 0) {
-					for (int i = deleteIdx; i < writeIdx; i++) {
-						if (i + 1 < 311)
-							flat[i] = flat[i + 1];
-						else
-							flat[i] = '\0';
-					}
-				}
-
-				for (int i = 0; i < 10; i++) memset(str[i], 0, sizeof(TCHAR) * 31);
-
-				int flatReadIdx = 0;
-				int currentTotalLen = lstrlen(flat);
-
-				for (int i = 0; i < 10; i++) {
-					for (int j = 0; j < saveLen[i]; j++) {
-						if (flatReadIdx < currentTotalLen) {
-							str[i][j] = flat[flatReadIdx++];
-						}
-					}
-					saveLen[i] = lstrlen(str[i]);
-				}
-
-				int tempSum = 0;
-				for (int i = 0; i < 10; i++) {
-					if (deleteIdx <= tempSum + saveLen[i]) {
-						line = i;
-						count = deleteIdx - tempSum;
-						break;
-					}
-					tempSum += saveLen[i];
-				}
-
-				InvalidateRect(hWnd, NULL, TRUE);*/
 				for (int j = count - 1; j < 30; j++) {
 					str[line][j] = (j + 1 < 31) ? str[line][j + 1] : '\0';
 				}
@@ -434,13 +354,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_RETURN) {
-			/*if (line < 9) {
-				if (saveLen[line] < count)
-					saveLen[line] = count;
-				++line;
-				count = 0;
-			}*/
-
 			if (lstrlen(str[9]) > 0)
 				break;
 
@@ -636,8 +549,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 						break;
 					}
 				}
-
-				TCHAR carryChar = (TCHAR)wParam; 
+				TCHAR carryChar;
+				/*if (f1_on) {
+					if (wParam >= 'a' && wParam <= 'z')
+						carryChar = (TCHAR)wParam - 32;
+				}
+				else
+					carryChar = (TCHAR)wParam;*/
+				carryChar = (TCHAR)wParam;
 
 				for (int i = line; i < 10; i++) {
 					int currentLen = lstrlen(str[i]);
@@ -669,6 +588,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 			else {
 				if (count < 30) {
+					/*if (f1_on) {
+						str[line][count++] = wParam - 32;
+						if (count > saveLen[line]) {
+							saveLen[line] = count;
+						}
+					}
+					else {
+						str[line][count++] = wParam;
+						if (count > saveLen[line]) {
+							saveLen[line] = count;
+						}
+					}*/
 					str[line][count++] = wParam;
 					if (count > saveLen[line]) {
 						saveLen[line] = count;
@@ -676,6 +607,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 				else {
 					if (line < 9) {
+						/*if (f1_on) {
+							saveLen[line] = count;
+							count = 0;
+							++line;
+							str[line][count++] = wParam - 32;
+						}
+						else {
+							saveLen[line] = count;
+							count = 0;
+							++line;
+							str[line][count++] = wParam;
+						}*/
 						saveLen[line] = count;
 						count = 0;
 						++line;
@@ -687,12 +630,125 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_PAINT:
+		//hDC = BeginPaint(hWnd, &ps);
+
+		//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));		// 출력되는 모든 글자의 간격을 동일하게 만듦
+
+		//for (int i = 0; i < 10; ++i)
+		//	TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+
+		//GetTextExtentPoint32(hDC, str[line], count, &size);
+		//SetCaretPos(size.cx, line * 20);
+		//EndPaint(hWnd, &ps);
+		//break;
+
 		hDC = BeginPaint(hWnd, &ps);
 
 		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));		// 출력되는 모든 글자의 간격을 동일하게 만듦
 
-		for (int i = 0; i < 10; ++i) 
-			TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		static TCHAR copystr[10][150];
+
+		for (int i = 0; i < 10; ++i)
+			_tcscpy_s(copystr[i], 150, str[i]);
+
+		if (f1_on) {
+			for (int i = 0; i < 10; ++i) {
+				for (int j = 0; j < 150; ++j) {
+					if (copystr[i][j] >= 'a' && copystr[i][j] <= 'z')
+						copystr[i][j] -= 32;
+				}
+			}
+		}
+		else {
+			for (int i = 0; i < 10; ++i)
+				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		}
+
+		if (f2_on) {
+			for (int i = 0; i < 10; ++i) {
+				int j = 0;
+				while (copystr[i][j] != NULL) {
+					if (copystr[i][j] >= '0' && copystr[i][j] >= '9') {
+						for (int k = lstrlen(copystr[i]); k >= j; --k)
+							copystr[i][k + 4] = copystr[i][k];
+						copystr[i][j - 3] = '*';
+						copystr[i][j - 2] = '*';
+						copystr[i][j - 1] = '*';
+						copystr[i][j] = '*';
+					}
+					++j;
+				}
+				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+			}
+		}
+		else {
+			for (int i = 0; i < 10; ++i)
+				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		}
+
+		if (f3_on) {
+			TCHAR flat[1511] = { 0 };
+			int writeIdx = 0;
+			int flatCursor = 0;
+
+			for (int i = 0; i < 10; i++) {
+				if (i < line) flatCursor += lstrlen(copystr[i]);
+				else if (i == line) flatCursor += count;
+
+				for (int j = 0; j < 30; j++) {
+					if (copystr[i][j] != '\0') {
+						flat[writeIdx++] = copystr[i][j];
+					}
+				}
+			}
+			flat[writeIdx] = '\0';
+
+			int left = flatCursor;
+			while (left > 0 && flat[left - 1] != ' ') 
+				--left;
+
+
+
+			int right = flatCursor;
+			while (right < writeIdx && flat[right] != ' ' && flat[right] != '\0') 
+				++right;
+			if (right < writeIdx && flat[right] == ' ') ++right;
+
+			for (int i = 0; i < 10; i++) memset(copystr[i], 0, sizeof(TCHAR) * 150);
+
+			int flatReadIdx = 0;
+			int currentTotalLen = lstrlen(flat);
+
+			for (int i = 0; i < 10; i++) {
+				for (int j = 0; j < saveLen[i]; j++) {
+					if (flatReadIdx < currentTotalLen) {
+						str[i][j] = flat[flatReadIdx++];
+					}
+				}
+				saveLen[i] = lstrlen(str[i]);
+			}
+
+			int finalFlatPos = left;
+			if (left >= currentTotalLen) {
+				finalFlatPos = currentTotalLen;
+				while (finalFlatPos > 0 && flat[finalFlatPos - 1] == ' ') {
+					finalFlatPos--;
+				}
+			}
+
+			int tempSum = 0;
+			for (int i = 0; i < 10; i++) {
+				if (finalFlatPos <= tempSum + saveLen[i]) {
+					line = i;
+					count = finalFlatPos - tempSum;
+					break;
+				}
+				tempSum += saveLen[i];
+			}
+		}
+
+		for (int i = 0; i < 10; ++i)
+			TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
 
 		GetTextExtentPoint32(hDC, str[line], count, &size);
 		SetCaretPos(size.cx, line * 20);

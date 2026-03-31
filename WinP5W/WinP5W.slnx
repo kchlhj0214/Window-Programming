@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="WinP5W/WinP5W.vcxproj" />
+  <Project Path="WinP5W/WinP5W.vcxproj" Id="56ffd4da-1e85-49ea-a32f-d8c9ff65b8a1" />
 </Solution>
