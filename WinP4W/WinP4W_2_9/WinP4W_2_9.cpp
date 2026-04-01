@@ -71,6 +71,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	//static bool f6_on = false;  // f6은 원본 수정
 	static bool f7_on = false;
 	static bool f8_on = false;
+	static int maxLine = 0;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -223,7 +224,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 					tempSum += saveLen[i];
 				}
-
+				maxLine = 0;
+				for (int i = 9; i >= 0; i--) {
+					saveLen[i] = lstrlen(str[i]); // saveLen 동기화
+					if (saveLen[i] > 0) {
+						if (i > maxLine) maxLine = i;
+					}
+				}
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
 		}
@@ -265,18 +272,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F6) {
-			TCHAR tempStr[31];
-			int tempLen = saveLen[0];
-			lstrcpy(tempStr, str[0]);
-
-			for (int i = 0; i < 9; ++i) {
-				lstrcpy(str[i], str[i + 1]);
-				saveLen[i] = saveLen[i + 1];
+			int actualLast = 0;
+			for (int i = 9; i >= 0; i--) {
+				if (lstrlen(str[i]) > 0) {
+					actualLast = i;
+					break;
+				}
 			}
+			if (actualLast > maxLine) maxLine = actualLast;
 
-			lstrcpy(str[9], tempStr);
-			saveLen[9] = tempLen;
+			if (maxLine > 0) {
+				TCHAR tempStr[31];
+				int tempLen = saveLen[0];
+				lstrcpy(tempStr, str[0]);
 
+				for (int i = 0; i < maxLine; ++i) {
+					lstrcpy(str[i], str[i + 1]);
+					saveLen[i] = saveLen[i + 1];
+				}
+
+				lstrcpy(str[maxLine], tempStr);
+				saveLen[maxLine] = tempLen;
+				if (line > 0)
+				--line;
+				else
+					line = maxLine;
+				if (count > lstrlen(str[line])) count = lstrlen(str[line]);
+			}
+			
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F7) {
@@ -358,12 +381,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					line--;
 					count = prevLen;
 				}
+				maxLine = 0;
+				for (int i = 9; i >= 0; i--) {
+					saveLen[i] = lstrlen(str[i]);
+					if (saveLen[i] > 0 && i > maxLine) maxLine = i;
+				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_RETURN) {
 			if (lstrlen(str[9]) > 0)
 				break;
+			if (maxLine < 9) 
+				maxLine++;
 
 			for (int i = 8; i > line; --i) {
 				lstrcpy(str[i + 1], str[i]);
@@ -458,6 +488,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				count++;
 				if (count > 30 && line < 9) { line++; count = 0; }
 
+				maxLine = 0;
+				for (int i = 9; i >= 0; i--) {
+					saveLen[i] = lstrlen(str[i]);
+					if (saveLen[i] > 0 && i > maxLine) maxLine = i;
+				}
+
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
 		}
@@ -535,6 +571,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			count++;
 			if (count > 30 && line < 9) { line++; count = 0; }
 
+			maxLine = 0;
+			for (int i = 9; i >= 0; i--) {
+				saveLen[i] = lstrlen(str[i]);
+				if (saveLen[i] > 0 && i > maxLine) maxLine = i;
+			}
+
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else {
@@ -609,9 +651,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 						}
 					}*/
 					str[line][count++] = wParam;
-					if (count > saveLen[line]) {
-						saveLen[line] = count;
-					}
+					saveLen[line] = lstrlen(str[line]);
 				}
 				else {
 					if (line < 9) {
@@ -627,14 +667,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 							++line;
 							str[line][count++] = wParam;
 						}*/
-						saveLen[line] = count;
+						saveLen[line] = 30;
+						line++;
 						count = 0;
-						++line;
 						str[line][count++] = wParam;
+						saveLen[line] = lstrlen(str[line]);
 					}
 				}
 			}
+			for (int i = 0; i < 10; i++) {
+				saveLen[i] = lstrlen(str[i]);
+				if (saveLen[i] > 0 && i > maxLine) maxLine = i;
+			}
 		}
+
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_PAINT:
