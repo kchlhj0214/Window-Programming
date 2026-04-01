@@ -63,14 +63,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static int repeat = 0;
 	static int saveLen[10] = { 0 };
 	static int insertCheck = 0;
-	bool f1_on = false;
-	bool f2_on = false;
-	bool f3_on = false;
-	bool f4_on = false;
-	bool f5_on = false;
-	bool f6_on = false;
-	bool f7_on = false;
-	bool f8_on = false;
+	static bool f1_on = false;
+	static bool f2_on = false;
+	static bool f3_on = false;
+	static bool f4_on = false;
+	static bool f5_on = false;
+	//static bool f6_on = false;  // f6은 원본 수정
+	static bool f7_on = false;
+	static bool f8_on = false;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -265,10 +265,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F6) {
-			if (f6_on == false)
-				f6_on = true;
-			else
-				f6_on = false;
+			TCHAR tempStr[31];
+			int tempLen = saveLen[0];
+			lstrcpy(tempStr, str[0]);
+
+			for (int i = 0; i < 9; ++i) {
+				lstrcpy(str[i], str[i + 1]);
+				saveLen[i] = saveLen[i + 1];
+			}
+
+			lstrcpy(str[9], tempStr);
+			saveLen[9] = tempLen;
+
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F7) {
@@ -648,107 +656,151 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		static TCHAR copystr[10][150];
 
-		for (int i = 0; i < 10; ++i)
-			_tcscpy_s(copystr[i], 150, str[i]);
+		/*for (int i = 0; i < 10; ++i)
+			_tcscpy_s(copystr[i], 150, str[i]);*/
 
 		if (f1_on) {
 			for (int i = 0; i < 10; ++i) {
-				for (int j = 0; j < 150; ++j) {
-					if (copystr[i][j] >= 'a' && copystr[i][j] <= 'z')
-						copystr[i][j] -= 32;
+				int srcIdx = 0;
+				int destIdx = 0;
+				while (str[i][srcIdx] != '\0') {
+					if (str[i][srcIdx] >= 'a' && str[i][srcIdx] <= 'z')
+						copystr[i][destIdx++] = str[i][srcIdx++] - 32;
+					else
+						copystr[i][destIdx++] = str[i][srcIdx++];
 				}
-			}
-		}
-		else {
-			for (int i = 0; i < 10; ++i)
-				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
-		}
-
-		if (f2_on) {
-			for (int i = 0; i < 10; ++i) {
-				int j = 0;
-				while (copystr[i][j] != NULL) {
-					if (copystr[i][j] >= '0' && copystr[i][j] >= '9') {
-						for (int k = lstrlen(copystr[i]); k >= j; --k)
-							copystr[i][k + 4] = copystr[i][k];
-						copystr[i][j - 3] = '*';
-						copystr[i][j - 2] = '*';
-						copystr[i][j - 1] = '*';
-						copystr[i][j] = '*';
-					}
-					++j;
-				}
+				copystr[i][destIdx] = '\0';
 				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
 			}
 		}
+		else if (f2_on) {
+			for (int i = 0; i < 10; ++i) {
+				int srcIdx = 0;
+				int destIdx = 0;
+
+				while (str[i][srcIdx] != '\0') {
+					if (str[i][srcIdx] >= '0' && str[i][srcIdx] <= '9') {
+						for (int k = 0; k < 4; ++k)
+							copystr[i][destIdx++] = '*';
+						copystr[i][destIdx++] = str[i][srcIdx];
+					}
+					else 
+						copystr[i][destIdx++] = str[i][srcIdx];
+					srcIdx++;
+				}
+				copystr[i][destIdx] = '\0';
+
+				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+			}
+		}
+		else if (f3_on) {
+			for (int i = 0; i < 10; ++i) {
+				int srcIdx = 0;
+				int destIdx = 0;
+				bool inWord = false;
+
+				while (str[i][srcIdx] != '\0') {
+					if (str[i][srcIdx] != ' ') {
+						if (!inWord) {
+							copystr[i][destIdx++] = '(';
+							inWord = true;
+						}
+
+						TCHAR c = str[i][srcIdx];
+						if (c >= 'a' && c <= 'z') c -= 32;
+						copystr[i][destIdx++] = c;
+					}
+					else {
+						if (inWord) {
+							copystr[i][destIdx++] = ')';
+							inWord = false;
+						}
+						copystr[i][destIdx++] = ' ';
+					}
+					srcIdx++;
+				}
+				if (inWord) copystr[i][destIdx++] = ')';
+				copystr[i][destIdx] = '\0';
+
+				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+			}
+		}
+		else if (f4_on) {
+			for (int i = 0; i < 10; ++i) {
+				_tcscpy_s(copystr[i], 150, str[i]);
+
+				int srcIdx = 0;
+				int destIdx = 0;
+
+				while (copystr[i][srcIdx] != '\0') {
+					if (copystr[i][srcIdx] != ' ' && copystr[i][srcIdx] >= 'A' && str[i][srcIdx] <= 'Z')
+						copystr[i][destIdx++] = copystr[i][srcIdx] + 32;
+					else if (copystr[i][srcIdx] != ' ')
+						copystr[i][destIdx++] = copystr[i][srcIdx];
+					++srcIdx;
+				}
+				copystr[i][destIdx] = '\0';
+				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+			}
+		}
+		else if (f5_on) {
+			for (int i = 0; i < 10; ++i) {
+				vector<int> v(62, 0);
+				int srcIdx = 0;
+				while (str[i][srcIdx] != '\0') {
+					TCHAR c = str[i][srcIdx++];
+					if (c >= '0' && c <= '9')
+						v[c - '0']++;
+					else if (c >= 'A' && c <= 'Z')
+						v[c - 'A' + 10]++;
+					else if (c >= 'a' && c <= 'z')
+						v[c - 'a' + 36]++;
+				}
+
+
+				int maxIdx = -1;
+				int maxCount = 0;
+				for (int i = 0; i < 62; ++i) {
+					if (v[i] > maxCount) {
+						maxCount = v[i];
+						maxIdx = i;
+					}
+				}
+
+				TCHAR maxChar = '\0';
+				if (maxIdx != -1) {
+					if (maxIdx < 10) maxChar = '0' + maxIdx;
+					else if (maxIdx < 36) maxChar = 'A' + (maxIdx - 10);
+					else maxChar = 'a' + (maxIdx - 36);
+				}
+
+				int j = 0;
+				while (str[i][j] != '\0') {
+					if (maxChar != '\0' && str[i][j] == maxChar)
+						copystr[i][j] = '@';
+					else
+						copystr[i][j] = str[i][j];
+					j++;
+				}
+				copystr[i][j] = '\0';
+				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+			}
+
+		}
+		else if (f7_on) {
+
+		}
+		else if (f8_on) {
+
+		}
 		else {
 			for (int i = 0; i < 10; ++i)
 				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
 		}
 
-		if (f3_on) {
-			TCHAR flat[1511] = { 0 };
-			int writeIdx = 0;
-			int flatCursor = 0;
-
-			for (int i = 0; i < 10; i++) {
-				if (i < line) flatCursor += lstrlen(copystr[i]);
-				else if (i == line) flatCursor += count;
-
-				for (int j = 0; j < 30; j++) {
-					if (copystr[i][j] != '\0') {
-						flat[writeIdx++] = copystr[i][j];
-					}
-				}
-			}
-			flat[writeIdx] = '\0';
-
-			int left = flatCursor;
-			while (left > 0 && flat[left - 1] != ' ') 
-				--left;
 
 
-
-			int right = flatCursor;
-			while (right < writeIdx && flat[right] != ' ' && flat[right] != '\0') 
-				++right;
-			if (right < writeIdx && flat[right] == ' ') ++right;
-
-			for (int i = 0; i < 10; i++) memset(copystr[i], 0, sizeof(TCHAR) * 150);
-
-			int flatReadIdx = 0;
-			int currentTotalLen = lstrlen(flat);
-
-			for (int i = 0; i < 10; i++) {
-				for (int j = 0; j < saveLen[i]; j++) {
-					if (flatReadIdx < currentTotalLen) {
-						str[i][j] = flat[flatReadIdx++];
-					}
-				}
-				saveLen[i] = lstrlen(str[i]);
-			}
-
-			int finalFlatPos = left;
-			if (left >= currentTotalLen) {
-				finalFlatPos = currentTotalLen;
-				while (finalFlatPos > 0 && flat[finalFlatPos - 1] == ' ') {
-					finalFlatPos--;
-				}
-			}
-
-			int tempSum = 0;
-			for (int i = 0; i < 10; i++) {
-				if (finalFlatPos <= tempSum + saveLen[i]) {
-					line = i;
-					count = finalFlatPos - tempSum;
-					break;
-				}
-				tempSum += saveLen[i];
-			}
-		}
-
-		for (int i = 0; i < 10; ++i)
-			TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		
 
 		GetTextExtentPoint32(hDC, str[line], count, &size);
 		SetCaretPos(size.cx, line * 20);
