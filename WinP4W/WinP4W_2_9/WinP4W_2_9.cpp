@@ -68,10 +68,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static bool f3_on = false;
 	static bool f4_on = false;
 	static bool f5_on = false;
-	//static bool f6_on = false;  // f6은 원본 수정
-	static bool f7_on = false;
-	static bool f8_on = false;
+	//static bool f6_on = false;	// f6은 원본 수정
+	//static bool f7_on = false;	//      ,,
+	//static bool f8_on = false;	//      ,,
 	static int maxLine = 0;
+	static vector<int> order;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -237,7 +238,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == VK_ESCAPE) {
 			PostQuitMessage(0);
 		}
-		else if (wParam == VK_F1) {
+		/*else if (wParam == VK_F1) {		// 단일 실행
 			if (f1_on == false)
 				f1_on = true;
 			else
@@ -270,6 +271,41 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			else
 				f5_on = false;
 			InvalidateRect(hWnd, NULL, TRUE);
+		}*/
+		else if (wParam == VK_F1) {
+			f1_on = !f1_on;
+			order.erase(remove(order.begin(), order.end(), 1), order.end());	// remove(a, b, c) >> a부터 b중 c가 있으면 뒤 인덱스를 앞으로 땡기고 맨 마지막 주소 반환
+			if (f1_on)
+				order.push_back(1);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F2) {
+			f2_on = !f2_on;
+			order.erase(remove(order.begin(), order.end(), 2), order.end());
+			if (f2_on)
+				order.push_back(2);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F3) {
+			f3_on = !f3_on;
+			order.erase(remove(order.begin(), order.end(), 3), order.end());
+			if (f3_on)
+				order.push_back(3);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F4) {
+			f4_on = !f4_on;
+			order.erase(remove(order.begin(), order.end(), 4), order.end());
+			if (f4_on)
+				order.push_back(4);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == VK_F5) {
+			f5_on = !f5_on;
+			order.erase(remove(order.begin(), order.end(), 5), order.end());
+			if (f5_on)
+				order.push_back(5);
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F6) {
 			int actualLast = 0;
@@ -287,33 +323,43 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				lstrcpy(tempStr, str[0]);
 
 				for (int i = 0; i < maxLine; ++i) {
+					memset(str[i], 0, sizeof(TCHAR) * 31);		// 반드시 복사 후 문장 초기화로 유령값 방지
 					lstrcpy(str[i], str[i + 1]);
 					saveLen[i] = saveLen[i + 1];
 				}
 
+				memset(str[maxLine], 0, sizeof(TCHAR) * 31);
 				lstrcpy(str[maxLine], tempStr);
 				saveLen[maxLine] = tempLen;
 				if (line > 0)
-				--line;
+					--line;
 				else
 					line = maxLine;
 				if (count > lstrlen(str[line])) count = lstrlen(str[line]);
 			}
-			
+
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F7) {
-			if (f7_on == false)
-				f7_on = true;
-			else
-				f7_on = false;
+			for (int i = 0; i < 10; ++i) {
+				for (int j = 0; j < lstrlen(str[i]); ++j) {
+					if (str[i][j] >= '0' && str[i][j] < '9')
+						str[i][j] += 1;
+					else if (str[i][j] == '9')
+						str[i][j] = '0';
+				}
+			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F8) {
-			if (f8_on == false)
-				f8_on = true;
-			else
-				f8_on = false;
+			for (int i = 0; i < 10; ++i) {
+				for (int j = 0; j < lstrlen(str[i]); ++j) {
+					if (str[i][j] > '0' && str[i][j] <= '9')
+						str[i][j] -= 1;
+					else if (str[i][j] == '0')
+						str[i][j] = '9';
+				}
+			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 
@@ -392,7 +438,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == VK_RETURN) {
 			if (lstrlen(str[9]) > 0)
 				break;
-			if (maxLine < 9) 
+			if (maxLine < 9)
 				maxLine++;
 
 			for (int i = 8; i > line; --i) {
@@ -684,169 +730,267 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_PAINT:
+		//------------------------------------------------------단일 실행
 		//hDC = BeginPaint(hWnd, &ps);
 
 		//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));		// 출력되는 모든 글자의 간격을 동일하게 만듦
 
-		//for (int i = 0; i < 10; ++i)
-		//	TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		//static TCHAR copystr[10][150];
 
-		//GetTextExtentPoint32(hDC, str[line], count, &size);
-		//SetCaretPos(size.cx, line * 20);
-		//EndPaint(hWnd, &ps);
-		//break;
+		//if (f1_on) {
+		//	if (f2_on || f3_on || f4_on || f5_on) {
+		//		for (int i = 0; i < 10; ++i) {
+		//			int srcIdx = 0;
+		//			int destIdx = 0;
+		//			while (copystr[i][srcIdx] != '\0') {
+		//				if (copystr[i][srcIdx] >= 'a' && copystr[i][srcIdx] <= 'z')
+		//					copystr[i][destIdx++] = copystr[i][srcIdx++] - 32;
+		//				else
+		//					copystr[i][destIdx++] = copystr[i][srcIdx++];
+		//			}
+		//			copystr[i][destIdx] = '\0';
+		//			TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//		}
+		//	}
+		//	else {
+		//		for (int i = 0; i < 10; ++i) {
+		//			int srcIdx = 0;
+		//			int destIdx = 0;
+		//			while (str[i][srcIdx] != '\0') {
+		//				if (str[i][srcIdx] >= 'a' && str[i][srcIdx] <= 'z')
+		//					copystr[i][destIdx++] = str[i][srcIdx++] - 32;
+		//				else
+		//					copystr[i][destIdx++] = str[i][srcIdx++];
+		//			}
+		//			copystr[i][destIdx] = '\0';
+		//			TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//		}
+		//	}
+		//}
+		//else if (f2_on) {
+		//	for (int i = 0; i < 10; ++i) {
+		//		int srcIdx = 0;
+		//		int destIdx = 0;
 
+		//		while (str[i][srcIdx] != '\0') {
+		//			if (str[i][srcIdx] >= '0' && str[i][srcIdx] <= '9') {
+		//				for (int k = 0; k < 4; ++k)
+		//					copystr[i][destIdx++] = '*';
+		//				copystr[i][destIdx++] = str[i][srcIdx];
+		//			}
+		//			else 
+		//				copystr[i][destIdx++] = str[i][srcIdx];
+		//			srcIdx++;
+		//		}
+		//		copystr[i][destIdx] = '\0';
+
+		//		TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//	}
+		//}
+		//else if (f3_on) {
+		//	for (int i = 0; i < 10; ++i) {
+		//		int srcIdx = 0;
+		//		int destIdx = 0;
+		//		bool inWord = false;
+
+		//		while (str[i][srcIdx] != '\0') {
+		//			if (str[i][srcIdx] != ' ') {
+		//				if (!inWord) {
+		//					copystr[i][destIdx++] = '(';
+		//					inWord = true;
+		//				}
+
+		//				TCHAR c = str[i][srcIdx];
+		//				if (c >= 'a' && c <= 'z') c -= 32;
+		//				copystr[i][destIdx++] = c;
+		//			}
+		//			else {
+		//				if (inWord) {
+		//					copystr[i][destIdx++] = ')';
+		//					inWord = false;
+		//				}
+		//				copystr[i][destIdx++] = ' ';
+		//			}
+		//			srcIdx++;
+		//		}
+		//		if (inWord) copystr[i][destIdx++] = ')';
+		//		copystr[i][destIdx] = '\0';
+
+		//		TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//	}
+		//}
+		//else if (f4_on) {
+		//	for (int i = 0; i < 10; ++i) {
+		//		_tcscpy_s(copystr[i], 150, str[i]);
+
+		//		int srcIdx = 0;
+		//		int destIdx = 0;
+
+		//		while (copystr[i][srcIdx] != '\0') {
+		//			if (copystr[i][srcIdx] != ' ' && copystr[i][srcIdx] >= 'A' && str[i][srcIdx] <= 'Z')
+		//				copystr[i][destIdx++] = copystr[i][srcIdx] + 32;
+		//			else if (copystr[i][srcIdx] != ' ')
+		//				copystr[i][destIdx++] = copystr[i][srcIdx];
+		//			++srcIdx;
+		//		}
+		//		copystr[i][destIdx] = '\0';
+		//		TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//	}
+		//}
+		//else if (f5_on) {
+		//	for (int i = 0; i < 10; ++i) {
+		//		vector<int> v(62, 0);
+		//		int srcIdx = 0;
+		//		while (str[i][srcIdx] != '\0') {
+		//			TCHAR c = str[i][srcIdx++];
+		//			if (c >= '0' && c <= '9')
+		//				v[c - '0']++;
+		//			else if (c >= 'A' && c <= 'Z')
+		//				v[c - 'A' + 10]++;
+		//			else if (c >= 'a' && c <= 'z')
+		//				v[c - 'a' + 36]++;
+		//		}
+
+
+		//		int maxIdx = -1;
+		//		int maxCount = 0;
+		//		for (int i = 0; i < 62; ++i) {
+		//			if (v[i] > maxCount) {
+		//				maxCount = v[i];
+		//				maxIdx = i;
+		//			}
+		//		}
+
+		//		TCHAR maxChar = '\0';
+		//		if (maxIdx != -1) {
+		//			if (maxIdx < 10) maxChar = '0' + maxIdx;
+		//			else if (maxIdx < 36) maxChar = 'A' + (maxIdx - 10);
+		//			else maxChar = 'a' + (maxIdx - 36);
+		//		}
+
+		//		int j = 0;
+		//		while (str[i][j] != '\0') {
+		//			if (maxChar != '\0' && str[i][j] == maxChar)
+		//				copystr[i][j] = '@';
+		//			else
+		//				copystr[i][j] = str[i][j];
+		//			j++;
+		//		}
+		//		copystr[i][j] = '\0';
+		//		TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
+		//	}
+
+		//}
+		//else {
+		//	for (int i = 0; i < 10; ++i)
+		//		TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
+		//}
+//-----------------------------------------------------------------------------------
 		hDC = BeginPaint(hWnd, &ps);
-
-		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));		// 출력되는 모든 글자의 간격을 동일하게 만듦
-
+		SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 		static TCHAR copystr[10][150];
 
-		/*for (int i = 0; i < 10; ++i)
-			_tcscpy_s(copystr[i], 150, str[i]);*/
 
-		if (f1_on) {
-			for (int i = 0; i < 10; ++i) {
-				int srcIdx = 0;
-				int destIdx = 0;
-				while (str[i][srcIdx] != '\0') {
-					if (str[i][srcIdx] >= 'a' && str[i][srcIdx] <= 'z')
-						copystr[i][destIdx++] = str[i][srcIdx++] - 32;
-					else
-						copystr[i][destIdx++] = str[i][srcIdx++];
-				}
-				copystr[i][destIdx] = '\0';
-				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
-			}
-		}
-		else if (f2_on) {
-			for (int i = 0; i < 10; ++i) {
-				int srcIdx = 0;
-				int destIdx = 0;
+		for (int i = 0; i < 10; ++i) {
 
-				while (str[i][srcIdx] != '\0') {
-					if (str[i][srcIdx] >= '0' && str[i][srcIdx] <= '9') {
-						for (int k = 0; k < 4; ++k)
-							copystr[i][destIdx++] = '*';
-						copystr[i][destIdx++] = str[i][srcIdx];
+			_tcscpy_s(copystr[i], 300, str[i]);
+
+			for (int mode : order) {
+				if (mode == 1) {
+					for (int j = 0; copystr[i][j] != '\0'; ++j) {
+						if (copystr[i][j] >= 'a' && copystr[i][j] <= 'z')
+							copystr[i][j] -= 32;
 					}
-					else 
-						copystr[i][destIdx++] = str[i][srcIdx];
-					srcIdx++;
 				}
-				copystr[i][destIdx] = '\0';
-
-				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
-			}
-		}
-		else if (f3_on) {
-			for (int i = 0; i < 10; ++i) {
-				int srcIdx = 0;
-				int destIdx = 0;
-				bool inWord = false;
-
-				while (str[i][srcIdx] != '\0') {
-					if (str[i][srcIdx] != ' ') {
-						if (!inWord) {
-							copystr[i][destIdx++] = '(';
-							inWord = true;
+				else if (mode == 2) {
+					TCHAR temp[300] = { 0 };
+					int tidx = 0;
+					for (int j = 0; copystr[i][j] != '\0'; ++j) {
+						if (copystr[i][j] >= '0' && copystr[i][j] <= '9') {
+							for (int k = 0; k < 4; ++k) temp[tidx++] = '*';
 						}
-
-						TCHAR c = str[i][srcIdx];
-						if (c >= 'a' && c <= 'z') c -= 32;
-						copystr[i][destIdx++] = c;
+						temp[tidx++] = copystr[i][j];
 					}
-					else {
-						if (inWord) {
-							copystr[i][destIdx++] = ')';
-							inWord = false;
+					_tcscpy_s(copystr[i], 300, temp);
+				}
+				else if (mode == 3) {
+					TCHAR temp[300] = { 0 };
+					int tidx = 0;
+					bool inWord = false;
+					for (int j = 0; copystr[i][j] != '\0'; ++j) {
+						if (copystr[i][j] != ' ') {
+							if (!inWord) {
+								temp[tidx++] = '(';
+								inWord = true;
+							}
+							TCHAR c = copystr[i][j];
+							if (c >= 'a' && c <= 'z')
+								c -= 32;
+							temp[tidx++] = c;
 						}
-						copystr[i][destIdx++] = ' ';
+						else {
+							if (inWord) {
+								temp[tidx++] = ')';
+								inWord = false;
+							}
+							temp[tidx++] = ' ';
+						}
 					}
-					srcIdx++;
+					if (inWord)
+						temp[tidx++] = ')';
+					_tcscpy_s(copystr[i], 300, temp);
 				}
-				if (inWord) copystr[i][destIdx++] = ')';
-				copystr[i][destIdx] = '\0';
-
-				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
-			}
-		}
-		else if (f4_on) {
-			for (int i = 0; i < 10; ++i) {
-				_tcscpy_s(copystr[i], 150, str[i]);
-
-				int srcIdx = 0;
-				int destIdx = 0;
-
-				while (copystr[i][srcIdx] != '\0') {
-					if (copystr[i][srcIdx] != ' ' && copystr[i][srcIdx] >= 'A' && str[i][srcIdx] <= 'Z')
-						copystr[i][destIdx++] = copystr[i][srcIdx] + 32;
-					else if (copystr[i][srcIdx] != ' ')
-						copystr[i][destIdx++] = copystr[i][srcIdx];
-					++srcIdx;
+				else if (mode == 4) {
+					TCHAR temp[300] = { 0 };
+					int tidx = 0;
+					for (int j = 0; copystr[i][j] != '\0'; ++j) {
+						if (copystr[i][j] != ' ') {
+							TCHAR c = copystr[i][j];
+							if (c >= 'A' && c <= 'Z') {
+								c += 32;
+							}
+							temp[tidx++] = c;
+						}
+					}
+					temp[tidx] = '\0';
+					_tcscpy_s(copystr[i], 300, temp);
 				}
-				copystr[i][destIdx] = '\0';
-				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
-			}
-		}
-		else if (f5_on) {
-			for (int i = 0; i < 10; ++i) {
-				vector<int> v(62, 0);
-				int srcIdx = 0;
-				while (str[i][srcIdx] != '\0') {
-					TCHAR c = str[i][srcIdx++];
-					if (c >= '0' && c <= '9')
-						v[c - '0']++;
-					else if (c >= 'A' && c <= 'Z')
-						v[c - 'A' + 10]++;
-					else if (c >= 'a' && c <= 'z')
-						v[c - 'a' + 36]++;
-				}
+				else if (mode == 5) {
+					vector<int> v(62, 0);
+					for (int j = 0; copystr[i][j] != '\0'; ++j) {
+						TCHAR c = copystr[i][j];
+						if (c >= '0' && c <= '9')
+							v[c - '0']++;
+						else if (c >= 'A' && c <= 'Z')
+							v[c - 'A' + 10]++;
+						else if (c >= 'a' && c <= 'z')
+							v[c - 'a' + 36]++;
+					}
+					int maxIdx = -1, maxCount = 0;
+					for (int k = 0; k < 62; ++k) {
+						if (v[k] > maxCount) {
+							maxCount = v[k];
+							maxIdx = k;
+						}
+					}
 
+					if (maxIdx != -1) {
+						TCHAR maxChar;
+						if (maxIdx < 10) maxChar = '0' + maxIdx;
+						else if (maxIdx < 36)
+							maxChar = 'A' + (maxIdx - 10);
+						else
+							maxChar = 'a' + (maxIdx - 36);
 
-				int maxIdx = -1;
-				int maxCount = 0;
-				for (int i = 0; i < 62; ++i) {
-					if (v[i] > maxCount) {
-						maxCount = v[i];
-						maxIdx = i;
+						for (int j = 0; copystr[i][j] != '\0'; ++j) {
+							if (copystr[i][j] == maxChar)
+								copystr[i][j] = '@';
+						}
 					}
 				}
-
-				TCHAR maxChar = '\0';
-				if (maxIdx != -1) {
-					if (maxIdx < 10) maxChar = '0' + maxIdx;
-					else if (maxIdx < 36) maxChar = 'A' + (maxIdx - 10);
-					else maxChar = 'a' + (maxIdx - 36);
-				}
-
-				int j = 0;
-				while (str[i][j] != '\0') {
-					if (maxChar != '\0' && str[i][j] == maxChar)
-						copystr[i][j] = '@';
-					else
-						copystr[i][j] = str[i][j];
-					j++;
-				}
-				copystr[i][j] = '\0';
-				TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
 			}
-
+			TextOut(hDC, 0, i * 20, copystr[i], lstrlen(copystr[i]));
 		}
-		else if (f7_on) {
-
-		}
-		else if (f8_on) {
-
-		}
-		else {
-			for (int i = 0; i < 10; ++i)
-				TextOut(hDC, 0, i * 20, str[i], lstrlen(str[i]));
-		}
-
-
-
-		
 
 		GetTextExtentPoint32(hDC, str[line], count, &size);
 		SetCaretPos(size.cx, line * 20);

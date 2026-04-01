@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="WinP5W/WinP5W.vcxproj" Id="56ffd4da-1e85-49ea-a32f-d8c9ff65b8a1" />
+  <Project Path="WinP5W_2_11/WinP5W_2_11.vcxproj" Id="1ad6bb4b-8e33-42ee-ba95-80b8a314ba41" />
 </Solution>
