@@ -58,7 +58,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static vector<COLORREF> colors(5);
 	int centerX = 450;
 	int centerY = 300;
-								// 상			우			하			좌
+	// 상			우			하			좌
 	static POINT posCenters[4] = { {450, 150}, {650, 300}, {450, 450}, {250, 300} };
 
 	static POINT sandGlass[4] = { {-50, -50}, {50, 50}, {-50, 50}, {50, -50} };
@@ -88,7 +88,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_KEYDOWN:
 		hDC = GetDC(hWnd);
-		
+
 		if (wParam == 'W') {
 			dShow = false;
 			sShow = false;
@@ -137,7 +137,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			for (int i = 0; i < 4; ++i) {
 				if (polygonPos[i] == 0)
 					polygonPos[i] = 2;
-				else if(polygonPos[i] == 2)
+				else if (polygonPos[i] == 2)
 					polygonPos[i] = 0;
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
