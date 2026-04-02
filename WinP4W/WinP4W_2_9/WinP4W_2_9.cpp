@@ -956,18 +956,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					_tcscpy_s(copystr[i], 300, temp);
 				}
 				else if (mode == 5) {
-					vector<int> v(62, 0);
+					vector<int> v(94, 0);
 					for (int j = 0; copystr[i][j] != '\0'; ++j) {
 						TCHAR c = copystr[i][j];
-						if (c >= '0' && c <= '9')
-							v[c - '0']++;
-						else if (c >= 'A' && c <= 'Z')
-							v[c - 'A' + 10]++;
-						else if (c >= 'a' && c <= 'z')
-							v[c - 'a' + 36]++;
+						if (c >= 33 && c <= 126) {
+							v[c - 33]++;
+						}
 					}
 					int maxIdx = -1, maxCount = 0;
-					for (int k = 0; k < 62; ++k) {
+					for (int k = 0; k < 94; ++k) {
 						if (v[k] > maxCount) {
 							maxCount = v[k];
 							maxIdx = k;
@@ -975,12 +972,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 
 					if (maxIdx != -1) {
-						TCHAR maxChar;
-						if (maxIdx < 10) maxChar = '0' + maxIdx;
-						else if (maxIdx < 36)
-							maxChar = 'A' + (maxIdx - 10);
-						else
-							maxChar = 'a' + (maxIdx - 36);
+						TCHAR maxChar = (TCHAR)(maxIdx + 33);
 
 						for (int j = 0; copystr[i][j] != '\0'; ++j) {
 							if (copystr[i][j] == maxChar)
