@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -7,7 +7,7 @@
 using namespace std;
 random_device rd;
 mt19937 g(rd());
-uniform_int_distribution<> uid{ 1, 4 };
+uniform_int_distribution<> uid{ 0, 3 };
 uniform_int_distribution<> uid_rgb{ 0, 255 };
 #define LEN 900
 #define HEI 700
@@ -95,7 +95,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			aShow = false;
 			if (!wShow) {
 				wShow = true;
-				mShow = 1;
+				mShow = 0;
 				colors[4] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
@@ -106,7 +106,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			aShow = false;
 			if (!dShow) {
 				dShow = true;
-				mShow = 2;
+				mShow = 1;
 				colors[4] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
@@ -117,7 +117,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			aShow = false;
 			if (!sShow) {
 				sShow = true;
-				mShow = 3;
+				mShow = 2;
 				colors[4] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
@@ -128,44 +128,84 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			sShow = false;
 			if (!aShow) {
 				aShow = true;
-				mShow = 4;
+				mShow = 3;
 				colors[4] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 				InvalidateRect(hWnd, NULL, TRUE);
 			}
 		}
 		else if (wParam == VK_UP) {
+			wShow = false;
+			dShow = false;
+			sShow = false;
+			aShow = false;
 			for (int i = 0; i < 4; ++i) {
 				if (polygonPos[i] == 0)
 					polygonPos[i] = 2;
 				else if(polygonPos[i] == 2)
 					polygonPos[i] = 0;
 			}
+			for (int i = 0; i < 4; ++i) {
+				if (polygonPos[i] == 0) {
+					mShow = i;
+					break;
+				}
+			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_DOWN) {
+			wShow = false;
+			dShow = false;
+			sShow = false;
+			aShow = false;
 			for (int i = 0; i < 4; ++i) {
 				if (polygonPos[i] == 1)
 					polygonPos[i] = 3;
 				else if (polygonPos[i] == 3)
 					polygonPos[i] = 1;
 			}
+			for (int i = 0; i < 4; ++i) {
+				if (polygonPos[i] == 0) {
+					mShow = i;
+					break;
+				}
+			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_LEFT) {
+			wShow = false;
+			dShow = false;
+			sShow = false;
+			aShow = false;
 			for (int i = 0; i < 4; ++i) {
 				if (polygonPos[i] == 0)
 					polygonPos[i] = 3;
 				else
 					--polygonPos[i];
 			}
+			for (int i = 0; i < 4; ++i) {
+				if (polygonPos[i] == 0) {
+					mShow = i;
+					break;
+				}
+			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_RIGHT) {
+			wShow = false;
+			dShow = false;
+			sShow = false;
+			aShow = false;
 			for (int i = 0; i < 4; ++i) {
 				if (polygonPos[i] == 3)
 					polygonPos[i] = 0;
 				else
 					++polygonPos[i];
+			}
+			for (int i = 0; i < 4; ++i) {
+				if (polygonPos[i] == 0) {
+					mShow = i;
+					break;
+				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
@@ -282,7 +322,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		switch (mShow) {	// 가운데 도형 출력
-		case 1:
+		case 0:
 			if (!wShow) {
 				hBrush = CreateSolidBrush(colors[0]);
 				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
@@ -298,7 +338,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				DeleteObject(hBrush);
 			}
 			break;
-		case 2:
+		case 1:
 			if (!dShow) {
 				hBrush = CreateSolidBrush(colors[1]);
 				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
@@ -314,7 +354,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				DeleteObject(hBrush);
 			}
 			break;
-		case 3:
+		case 2:
 			if (!sShow) {
 				hBrush = CreateSolidBrush(colors[2]);
 				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
@@ -330,7 +370,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				DeleteObject(hBrush);
 			}
 			break;
-		case 4:
+		case 3:
 			if (!aShow) {
 				hBrush = CreateSolidBrush(colors[3]);
 				oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
