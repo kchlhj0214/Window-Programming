@@ -6,4 +6,5 @@
   <Project Path="WinP5W/WinP5W.vcxproj" Id="56ffd4da-1e85-49ea-a32f-d8c9ff65b8a1" />
   <Project Path="WinP5W_2_11/WinP5W_2_11.vcxproj" Id="1ad6bb4b-8e33-42ee-ba95-80b8a314ba41" />
   <Project Path="WinP5W_2_12/WinP5W_2_12.vcxproj" Id="937318ec-b96f-4b1c-bf25-a9f43594b94c" />
+  <Project Path="WinP5W_2_13/WinP5W_2_13.vcxproj" Id="0e060e66-0732-4be1-b4d5-c20e56fe095f" />
 </Solution>
