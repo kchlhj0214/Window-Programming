@@ -57,6 +57,44 @@ typedef struct {
 	COLORREF color;
 }SHAPES;
 
+//bool PushShape(vector<SHAPES>& shapes, int targetIdx, int dx, int dy, vector<bool>& visited) {
+//	// 1. 순환 방지: 이미 이 밀기 동작에서 체크된 도형이면 중단 (무한 루프 방지)
+//	if (visited[targetIdx]) return false;
+//	visited[targetIdx] = true;
+//
+//	// 2. 다음에 가려는 위치 계산 (0~39 사이를 순환하도록 처리)
+//	int nextX = (shapes[targetIdx].x + dx + 40) % 40;
+//	int nextY = (shapes[targetIdx].y + dy + 40) % 40;
+//
+//	// 3. 그 위치에 이미 다른 도형이 있는지 전수 조사
+//	int neighborIdx = -1;
+//	for (int i = 0; i < (int)shapes.size(); ++i) {
+//		if (i == targetIdx) continue; // 자기 자신은 제외
+//		if (shapes[i].x == nextX && shapes[i].y == nextY) {
+//			neighborIdx = i;
+//			break;
+//		}
+//	}
+//
+//	// 4. 판단 로직
+//	bool canMove = false;
+//	if (neighborIdx == -1) {
+//		// 가려는 칸이 비어있으면 이동 가능!
+//		canMove = true;
+//	}
+//	else {
+//		// 누군가 있다면, "그 녀석"도 밀 수 있는지 재귀적으로 확인
+//		canMove = PushShape(shapes, neighborIdx, dx, dy, visited);
+//	}
+//
+//	// 5. 최종 이동 실행 (역순으로 한 칸씩 이동하게 됨)
+//	if (canMove) {
+//		shapes[targetIdx].x = nextX;
+//		shapes[targetIdx].y = nextY;
+//		return true;
+//	}
+//}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
@@ -118,6 +156,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
+		//// 방향키가 눌렸고, 선택된 도형(1~10)이 있을 때만 실행
+		//if ((wParam == VK_UP || wParam == VK_LEFT || wParam == VK_DOWN || wParam == VK_RIGHT)
+		//	&& (selected > 0 && selected <= (int)shapes.size())) {
+
+		//	int dx = 0, dy = 0;
+
+		//	// 눌린 키에 따라 이동 방향 설정
+		//	switch (wParam) {
+		//	case VK_UP:    dy = -1; break;
+		//	case VK_DOWN:  dy = 1;  break;
+		//	case VK_LEFT:  dx = -1; break;
+		//	case VK_RIGHT: dx = 1;  break;
+		//	}
+
+		//	// 이번 이동에 참여하는 도형들을 체크하기 위한 배열
+		//	vector<bool> visited(shapes.size(), false);
+
+		//	// 재귀 함수 호출! 성공적으로 밀었다면 화면 갱신
+		//	if (PushShape(shapes, selected - 1, dx, dy, visited)) {
+		//		InvalidateRect(hWnd, NULL, TRUE);
+		//	}
+		//}
 		else if (wParam == 'T') {
 			if (shapes.size() == 10) {
 				shapes.erase(shapes.begin());
