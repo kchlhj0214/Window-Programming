@@ -85,6 +85,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	switch (uMsg) {
 	case WM_CREATE:
 		shapes.clear();
+		initColor.clear();
+		initShape.clear();
 		break;
 
 	case WM_KEYDOWN:
@@ -281,12 +283,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == 'D') {
 			if (selected > 0 && selected <= shapes.size()) {
 				shapes.erase(shapes.begin() + selected - 1);
+				initColor.erase(initColor.begin() + selected - 1);
+				initShape.erase(initShape.begin() + selected - 1);
 				selected = 0;
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'P') {
 			shapes.clear();
+			initColor.clear();
+			initShape.clear();
 			selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
