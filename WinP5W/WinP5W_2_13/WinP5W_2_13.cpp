@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -72,6 +72,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static vector<int> initShape(10);
 	static vector<COLORREF> initColor(10);
 	static int selected = 0;
+	static int c_in = 0;
+	static vector<COLORREF> c(3);
 
 	static POINT triangle[3] = { {0, -10}, {-10, 10}, {10, 10} };
 	static POINT rect[2] = { {-10, -10}, {10, 10} };
@@ -121,7 +123,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				initShape.erase(initShape.begin());
 			}
 			SHAPES s;
-			s.color = uid_rgb(g);
+			s.color = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 			initColor.push_back(s.color);
 			s.shape = 0;
 			initShape.push_back(s.shape);
@@ -138,7 +140,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				initShape.erase(initShape.begin());
 			}
 			SHAPES s;
-			s.color = uid_rgb(g);
+			s.color = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 			initColor.push_back(s.color);
 			s.shape = 1;
 			initShape.push_back(s.shape);
@@ -155,7 +157,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				initShape.erase(initShape.begin());
 			}
 			SHAPES s;
-			s.color = uid_rgb(g);
+			s.color = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 			initColor.push_back(s.color);
 			s.shape = 2;
 			initShape.push_back(s.shape);
@@ -166,43 +168,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '1') {
-			selected = 1;
+			if (selected != 1)
+				selected = 1;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '2') {
-			selected = 2;
+			if (selected != 2)
+				selected = 2;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '3') {
-			selected = 3;
+			if (selected != 3)
+				selected = 3;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '4') {
-			selected = 4;
+			if (selected != 4)
+				selected = 4;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '5') {
-			selected = 5;
+			if (selected != 5)
+				selected = 5;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '6') {
-			selected = 6;
+			if (selected != 6)
+				selected = 6;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '7') {
-			selected = 7;
+			if (selected != 7)
+				selected = 7;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '8') {
-			selected = 8;
+			if (selected != 8)
+				selected = 8;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '9') {
-			selected = 9;
+			if (selected != 9)
+				selected = 9;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '0') {
-			selected = 10;
+			if (selected != 10)
+				selected = 10;
+			else
+				selected = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_ESCAPE || wParam == 'Q') {
@@ -218,7 +250,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'C') {
-			
+			if (!c_in) {
+				for (int i = 0; i < 3; ++i)
+					c[i] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
+				for (int i = 0; i < shapes.size(); ++i) {
+					if (shapes[i].shape == 2) {
+						shapes[i].shape = 0;
+						shapes[i].color = c[2];
+					}
+					else if(shapes[i].shape == 1) {
+						shapes[i].shape = 2;
+						shapes[i].color = c[1];
+					}
+					else if(shapes[i].shape == 0) {
+						shapes[i].shape = 1;
+						shapes[i].color = c[0];
+					}
+				}
+				c_in = 1;
+			}
+			else{
+				for (int i = 0; i < shapes.size(); ++i) {
+					shapes[i].shape = initShape[i];
+					shapes[i].color = initColor[i];
+				}
+				c_in = 0;
+			}
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == 'D') {
 			if (selected > 0 && selected <= shapes.size()) {

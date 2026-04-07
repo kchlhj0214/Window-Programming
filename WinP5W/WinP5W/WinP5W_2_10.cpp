@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -14,6 +14,7 @@ uniform_int_distribution<> uid_ry{ 100, 500 };
 uniform_int_distribution<> uid_ex{ 300, 600 };
 uniform_int_distribution<> uid_ey{ 200, 400 };
 uniform_int_distribution<> uid_rgb{ 0, 255 };
+uniform_int_distribution<> uid_ell{ 2, 16 };
 #define LEN 900
 #define HEI 700
 
@@ -63,10 +64,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	RECT rt = { 150, 100, 750, 500 };
 	RECT rt2 = { 300, 200, 600, 400 };
 	static vector<COLORREF> colors;
+	static int ell = 0;
 
-	static vector<POINT> trianglePoints(18);
-	static vector<POINT> rectPoints(8);
-	static vector<POINT> ellipsePoints(4);
+	static vector<POINT> trianglePoints(54);
+	static vector<POINT> rectPoints(24);
+	static vector<POINT> ellipsePoints(16);
 	static int triangle_num = 0, rect_num = 0, ellipse_num = 0;;
 
 	switch (uMsg) {
@@ -74,7 +76,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		for (int i = 0; i < 3; ++i)		// 색 초기값
 			colors.push_back(RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g)));
 
-		while (triangle_num < 18) {
+		while (triangle_num < 54) {
 			int centerX = uid_tx(g);
 			int centerY = uid_ty(g);
 
@@ -107,7 +109,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			triangle_num += 3;
 		}
 
-		while (rect_num < 8) {
+		while (rect_num < 24) {
 			POINT p1, p2;
 			p1.x = uid_rx(g);
 			p1.y = uid_ry(g);
@@ -138,7 +140,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			rect_num += 2;
 		}
 
-		while (ellipse_num < 4) {
+		ell = uid_ell(g);
+		while (ell % 2 == 0)
+			ell = uid_ell(g);
+
+		while (ellipse_num < ell) {
 			POINT p1, p2;
 			p1.x = uid_ex(g);
 			p1.y = uid_ey(g);
@@ -178,7 +184,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			for (int i = 0; i < 3; ++i)
 				colors[i] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
 
-			while (triangle_num < 18) {
+			while (triangle_num < 54) {
 				int centerX = uid_tx(g);
 				int centerY = uid_ty(g);
 
@@ -211,7 +217,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				triangle_num += 3;
 			}
 
-			while (rect_num < 8) {
+			while (rect_num < 24) {
 				POINT p1, p2;
 				p1.x = uid_rx(g);
 				p1.y = uid_ry(g);
@@ -241,8 +247,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				rect_num += 2;
 			}
+			ell = uid_ell(g);
+			while (ell % 2 == 0)
+				ell = uid_ell(g);
 
-			while (ellipse_num < 4) {
+			while (ellipse_num < ell) {
 				POINT p1, p2;
 				p1.x = uid_ex(g);
 				p1.y = uid_ey(g);
@@ -275,7 +284,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if(wParam == '1') {
 			triangle_num = 0;
 			colors[0] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
-			while (triangle_num < 18) {
+			while (triangle_num < 54) {
 				int centerX = uid_tx(g);
 				int centerY = uid_ty(g);
 
@@ -312,7 +321,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == '2') {
 			rect_num = 0;
 			colors[1] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
-			while (rect_num < 8) {
+			while (rect_num < 24) {
 				POINT p1, p2;
 				p1.x = uid_rx(g);
 				p1.y = uid_ry(g);
@@ -345,9 +354,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == '3') {
+			ell = uid_ell(g);
+			while (ell % 2 == 0)
+				ell = uid_ell(g);
 			ellipse_num = 0;
 			colors[2] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
-			while (ellipse_num < 4) {
+			while (ellipse_num < ell) {
 				POINT p1, p2;
 				p1.x = uid_ex(g);
 				p1.y = uid_ey(g);
@@ -389,21 +401,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		hBrush = CreateSolidBrush(colors[0]);
 		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
-		for (int i = 0; i < 18; i += 3) 
+		for (int i = 0; i < 54; i += 3) 
 			Polygon(hDC, &trianglePoints[i], 3);
 		SelectObject(hDC, oldBrush);
 		DeleteObject(hBrush);
 
 		hBrush = CreateSolidBrush(colors[1]);
 		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
-		for (int i = 0; i < 8; i += 2)
+		for (int i = 0; i < 24; i += 2)
 			Rectangle(hDC, rectPoints[i].x, rectPoints[i].y, rectPoints[i + 1].x, rectPoints[i + 1].y);
 		SelectObject(hDC, oldBrush);
 		DeleteObject(hBrush);
 
 		hBrush = CreateSolidBrush(colors[2]);
 		oldBrush = (HBRUSH)SelectObject(hDC, hBrush);
-		for (int i = 0; i < 4; i += 2)
+		for (int i = 0; i < ell; i += 2)
 			Ellipse(hDC, ellipsePoints[i].x, ellipsePoints[i].y, ellipsePoints[i + 1].x, ellipsePoints[i + 1].y);
 		SelectObject(hDC, oldBrush);
 		DeleteObject(hBrush);

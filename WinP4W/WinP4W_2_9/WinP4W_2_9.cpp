@@ -342,22 +342,106 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == VK_F7) {
 			for (int i = 0; i < 10; ++i) {
-				for (int j = 0; j < lstrlen(str[i]); ++j) {
-					if (str[i][j] >= '0' && str[i][j] < '9')
-						str[i][j] += 1;
-					else if (str[i][j] == '9')
-						str[i][j] = '0';
+				int len = lstrlen(str[i]);
+				for (int j = 0; j < len; ++j) {
+					if (isdigit(str[i][j]) && !isdigit(str[i][j + 1])) {
+						int start = j;
+						while (start > 0 && isdigit(str[i][start - 1])) {
+							start--;
+						}
+
+						if (start > 0 && str[i][start - 1] == '-') {
+							int k = j;
+							bool borrow = true;
+							while (k >= start && borrow) {
+								if (str[i][k] == '0') {
+									str[i][k] = '9';
+									k--;
+								}
+								else {
+									str[i][k] -= 1;
+									borrow = false;
+								}
+							}
+							if (str[i][start] == '0' && isdigit(str[i][start + 1])) {
+								for (int m = start; m < len; ++m) str[i][m] = str[i][m + 1];
+								len--; j--;
+							}
+							else if (str[i][start] == '0' && !isdigit(str[i][start + 1])) {
+								for (int m = start - 1; m < len; ++m) str[i][m] = str[i][m + 1];
+								len--; j--;
+							}
+						}
+						else {
+							int k = j;
+							bool carry = true;
+							while (k >= start && carry) {
+								if (str[i][k] == '9') {
+									str[i][k] = '0';
+									k--;
+								}
+								else {
+									str[i][k] += 1;
+									carry = false;
+								}
+							}
+							if (carry&& len < 30) {
+								for (int m = len; m > start; --m) str[i][m] = str[i][m - 1];
+								str[i][start] = '1';
+								len++; j++;
+							}
+						}
+						saveLen[i] = len;
+					}
 				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
 		}
 		else if (wParam == VK_F8) {
 			for (int i = 0; i < 10; ++i) {
-				for (int j = 0; j < lstrlen(str[i]); ++j) {
-					if (str[i][j] > '0' && str[i][j] <= '9')
-						str[i][j] -= 1;
-					else if (str[i][j] == '0')
-						str[i][j] = '9';
+				int len = lstrlen(str[i]);
+				for (int j = 0; j < len; ++j) {
+					if (isdigit(str[i][j]) && !isdigit(str[i][j + 1])) {
+						int start = j;
+						while (start > 0 && isdigit(str[i][start - 1])) {
+							start--;
+						}
+
+						if (start > 0 && str[i][start - 1] == '-') {
+							int k = j;
+							bool carry = true;
+							while (k >= start && carry) {
+								if (str[i][k] == '9') { str[i][k] = '0'; k--; }
+								else { str[i][k] += 1; carry = false; }
+							}
+							if (carry&& len < 30) { 
+								for (int m = len; m > start; --m) str[i][m] = str[i][m - 1];
+								str[i][start] = '1';
+								len++; j++;
+							}
+						}
+						else if (start == j && str[i][j] == '0') {
+							if (len < 29) { 
+								for (int m = len; m > start; --m) str[i][m] = str[i][m - 1];
+								str[i][start] = '-';
+								str[i][start + 1] = '1';
+								len++; j++;
+							}
+						}
+						else {
+							int k = j;
+							bool borrow = true;
+							while (k >= start && borrow) {
+								if (str[i][k] == '0') { str[i][k] = '9'; k--; }
+								else { str[i][k] -= 1; borrow = false; }
+							}
+							if (str[i][start] == '0' && isdigit(str[i][start + 1])) {
+								for (int m = start; m < len; ++m) str[i][m] = str[i][m + 1];
+								len--; j--;
+							}
+						}
+						saveLen[i] = len;
+					}
 				}
 			}
 			InvalidateRect(hWnd, NULL, TRUE);

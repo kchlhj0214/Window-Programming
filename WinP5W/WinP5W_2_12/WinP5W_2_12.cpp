@@ -194,7 +194,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 				else if (cell >= 5 && cell <= 8) {
 					player1.shape = cell - 5;
-					resetShape1 = 30;
+					resetShape1 =5;
 				}
 				else if (cell >= 9 && cell <= 11) 
 					player1.size = cell - 8;
@@ -237,7 +237,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 				else if (cell >= 5 && cell <= 8) {
 					player2.shape = cell - 5;
-					resetShape2 = 30;
+					resetShape2 = 5;
 				}
 				else if (cell >= 9 && cell <= 11) 
 					player2.size = cell - 8;
