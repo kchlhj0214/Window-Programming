@@ -77,6 +77,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static int active_direction = 0;
 	static bool pause = true;
 
+	static float angle = 0.0f;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -99,6 +100,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (active_direction != 0) 
 				KillTimer(hWnd, active_direction);
 			move_right = true;
+			pause = true;
 			active_direction = 1;
 			SetTimer(hWnd, active_direction, speed, NULL);
 
@@ -108,6 +110,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (active_direction != 0) 
 				KillTimer(hWnd, active_direction);
 			move_down = true;
+			pause = true;
 			active_direction = 2;
 			SetTimer(hWnd, active_direction, speed, NULL);
 
@@ -118,6 +121,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				KillTimer(hWnd, active_direction);
 			move_right = true;
 			move_down = true;
+			pause = true;
 			active_direction = 3;
 			SetTimer(hWnd, active_direction, speed, NULL);
 
@@ -171,6 +175,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				SetTimer(hWnd, 3, speed, NULL);
 			}
 			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		else if (wParam == 'A') {
+			if (active_direction != 0)
+				KillTimer(hWnd, active_direction);
+			pause = true;
+			active_direction = 4;
+			SetTimer(hWnd, active_direction, speed, NULL);
 		}
 		break;
 
@@ -344,6 +355,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				else
 					my -= 3;
 			}
+			break;
+		case 4:
+			angle += 0.05f;
+
+			mx = (int)(400 + 200 * cos(angle));
+			my = (int)(300 + 200 * sin(angle));
+
+			if (angle > 6.28318f) angle = 0.0f;
 			break;
 		}
 
