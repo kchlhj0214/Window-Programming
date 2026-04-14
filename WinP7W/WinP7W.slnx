@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="WinP7W/WinP7W.vcxproj" Id="77a0634c-1b8d-4369-ac66-14c258e42e27" />
+  <Project Path="WinP7W_3_2/WinP7W_3_2.vcxproj" Id="27a05b8a-9121-4ec1-8c42-1d847f7c5bf8" />
 </Solution>
