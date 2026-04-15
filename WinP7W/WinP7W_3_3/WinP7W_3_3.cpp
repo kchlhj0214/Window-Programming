@@ -7,12 +7,12 @@
 using namespace std;
 random_device rd;
 mt19937 g(rd());
-uniform_int_distribution<> uid_shape{ 0, 2 };
+uniform_int_distribution<> uid_movemode{ 1, 5 };
 uniform_int_distribution<> uid_rgb{ 0, 255 };
 uniform_int_distribution<> uid_drawBoard{ 0, 39 };
 uniform_int_distribution<> uid_size{ -3, 3 };
-#define LEN 100
-#define HEI 100
+#define LEN 1000
+#define HEI 1000
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
@@ -49,30 +49,299 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	return Message.wParam;
 }
 
+static int board[40][40] = { 0 };
+static COLORREF colorBoard[40][40];
+
+void spawn_item() {
+	int ix, iy;
+	do {
+		ix = uid_drawBoard(g);
+		iy = uid_drawBoard(g);
+	} while (board[ix][iy] != 0);
+
+	board[ix][iy] = 2;
+	colorBoard[ix][iy] = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
+}
+
 typedef struct {
 	COLORREF color;
-	float r;
-	int dire;
+	int r;
+	int primaryDir;	// 0 우 / 1 하 / 2 좌 / 3 상
+	int secondaryDir;
 	bool shape; // true 원 false 삼각형
 	bool jump;
-	int centerX;
-	int centerY;
+	int x, y;
+	int prevX, prevY;
 	int pos;	// 원의 순서
-	int movemode;
+	int movemode;	// 꼬리원 이동 로직
+	bool bigger;
+	int case3_count;
 } CIRCLE;
 
-void circle_move(CIRCLE c) {
-
-}
-
-void tailCircle_move(CIRCLE c) {
-
-}
-
-void init_setting(CIRCLE c) {
+void init_setting(CIRCLE &c) {
 	c.color = uid_rgb(g);
-	c.size = 10
+	c.r = 10;
+	c.primaryDir = 0;
+	c.secondaryDir = 1;
+	c.shape = true;
+	c.jump = false;
+	c.x = uid_drawBoard(g);
+	c.y = uid_drawBoard(g);
+	int pos = 0;
 }
+
+bool IsCollision(int x, int y) {
+	if (x >= 0 && x < 40 && y >= 0 && y < 40) {
+		if (board[x][y] != 1) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void head_move(CIRCLE& head) {		// 머리 움직임
+	head.prevX = head.x;
+	head.prevY = head.y;
+
+	int px = head.x;
+	int py = head.y;
+
+	if (head.primaryDir == 0) px++;      // 우
+	else if (head.primaryDir == 1) py++; // 하
+	else if (head.primaryDir == 2) px--; // 좌
+	else if (head.primaryDir == 3) py--; // 상
+
+	if (!IsCollision(px, py)) {
+		head.x = px;
+		head.y = py;
+	}
+	else {
+		int sx = head.x;
+		int sy = head.y;
+
+		if (head.secondaryDir == 0) sx++;
+		else if (head.secondaryDir == 1) sy++;
+		else if (head.secondaryDir == 2) sx--;
+		else if (head.secondaryDir == 3) sy--;
+
+		if (!IsCollision(sx, sy)) {
+			head.x = sx;
+			head.y = sy;
+			head.primaryDir = (head.primaryDir + 2) % 4;
+		}
+		else {
+			int osDir = (head.secondaryDir + 2) % 4;
+			int ox = head.x;
+			int oy = head.y;
+
+			if (osDir == 0) ox++;
+			else if (osDir == 1) oy++;
+			else if (osDir == 2) ox--;
+			else if (osDir == 3) oy--;
+
+			if (!IsCollision(ox, oy)) {
+				head.x = ox;
+				head.y = oy;
+				head.primaryDir = (head.primaryDir + 2) % 4;
+				head.secondaryDir = osDir;
+			}
+		}
+	}
+}
+
+void follow_move(CIRCLE& cur, const CIRCLE& prev) {		// 따라가는 꼬리 움직임
+	cur.prevX = cur.x;
+	cur.prevY = cur.y;
+
+	cur.x = prev.prevX;
+	cur.y = prev.prevY;
+}
+
+// case 3 순환 이동 로직을 위한 변수
+const int dx[] = { 1, 0, -1, 0 }; // 우 하 좌 상
+const int dy[] = { 0, 1, 0, -1 };
+
+void tail_move(CIRCLE& t) {		// 독립된 꼬리 움직임
+	switch (t.movemode) {
+	case 1:		// 좌우
+		if (t.primaryDir == 0) {
+			if (t.x >= 39 || board[t.x + 1][t.y] == 1) {
+				t.primaryDir = 2;
+				t.x--;
+			}
+			else
+				t.x++;
+		}
+		else {
+			if (t.x <= 0 || board[t.x - 1][t.y] == 1) {
+				t.primaryDir = 0;
+				t.x++;
+			}
+			else
+				t.x--;
+		}
+		break;
+	case 2:		// 상하
+		if (t.primaryDir == 1) {
+			if (t.y >= 39 || board[t.x][t.y + 1] == 1) {
+				t.primaryDir = 3;
+				t.y--;
+			}
+			else
+				t.y++;
+		}
+		else {
+			if (t.y <= 0 || board[t.x][t.y - 1] == 1) {
+				t.primaryDir = 1;
+				t.y++;
+			}
+			else
+				t.y--;
+		}
+		break;
+	case 3:		// 사각형 순환
+	{
+		if (t.case3_count >= 4) {
+			t.case3_count = 0;
+			t.primaryDir = (t.primaryDir + 1) % 4;
+		}
+
+		int nx = t.x + dx[t.primaryDir];
+		int ny = t.y + dy[t.primaryDir];
+
+		if (!IsCollision(nx, ny)) {
+			t.x = nx;
+			t.y = ny;
+			t.case3_count++;
+		}
+		else {
+			t.case3_count = 0;
+			t.primaryDir = (t.primaryDir + 1) % 4;
+
+			int tx = t.x + dx[t.primaryDir];
+			int ty = t.y + dy[t.primaryDir];
+			if (IsCollision(tx, ty)) {
+				t.primaryDir = (t.primaryDir + 1) % 4;
+			}
+		}
+		break;
+	}
+	case 5:
+	{
+		if (t.r >= 30) t.bigger = false;
+		else if (t.r <= 1) t.bigger = true;
+
+		if (t.bigger) t.r++;
+		else t.r--;
+		break;
+	}
+	}	
+}
+
+void item_to_circle(vector<CIRCLE>& c, COLORREF ccolor) {
+	CIRCLE newTail;
+
+	newTail.color = ccolor;
+	newTail.r = 10;
+	newTail.movemode = uid_movemode(g);
+	newTail.bigger = true;
+	newTail.case3_count = 0;
+
+	do {
+		newTail.x = uid_drawBoard(g);
+		newTail.y = uid_drawBoard(g);
+	} while (board[newTail.x][newTail.y] != 0);
+
+	newTail.prevX = newTail.x;
+	newTail.prevY = newTail.y;
+
+	if (newTail.movemode == 1 || newTail.movemode == 3)
+		newTail.primaryDir = 0;
+	else if (newTail.movemode == 2)
+		newTail.primaryDir = 1;
+
+	c.push_back(newTail);
+}
+
+void tailtail_collision(vector<CIRCLE>& t) {
+	for (int i = 0; i < (int)t.size(); ++i) {
+		if (t[i].movemode == 0) continue;
+
+		for (int j = 0; j < (int)t.size(); ++j) {
+			if (i == j) continue;
+
+			if (t[i].x == t[j].x && t[i].y == t[j].y) {
+				CIRCLE tempJ = t[j];
+				tempJ.movemode = 0;
+				tempJ.color = t[i].color;
+
+				t.erase(t.begin() + j);		// 독립원 순서 재배치
+
+				if (j < i) {
+					t.insert(t.begin() + i, tempJ);
+				}
+				else {
+					t.insert(t.begin() + i + 1, tempJ);
+				}
+
+				return;
+			}
+		}
+	}
+}
+
+void tail_eaten_head(vector<CIRCLE>& circles, vector<CIRCLE>& tail_circles) {
+	for (auto it = tail_circles.begin(); it != tail_circles.end(); )
+	{
+		bool isHit = false;
+		int hx = circles[0].x;
+		int hy = circles[0].y;
+		int tx = it->x;	// 독립원의 중심 X칸
+		int ty = it->y;	// 독립원의 중심 Y칸
+
+		if (it->r >= 1 && it->r <= 10) {		// 원이 한 칸보다 작을때
+			if (hx == tx && hy == ty) isHit = true;
+		}
+		else if (it->r >= 11 && it->r <= 14) {	// 원의 반지름이 14.14보다 작을때(한 칸의 대각선)
+			if ((hx == tx && hy == ty) ||           // 중심
+				(hx == tx + 1 && hy == ty) ||       // 우
+				(hx == tx - 1 && hy == ty) ||       // 좌
+				(hx == tx && hy == ty + 1) ||       // 하
+				(hx == tx && hy == ty - 1))         // 상
+				isHit = true;
+		}
+		else if (it->r >= 15 && it->r <= 30) {	// 원의 반지름이 14.14보다 클 때
+			if (hx >= tx - 1 && hx <= tx + 1 && hy >= ty - 1 && hy <= ty + 1)
+				isHit = true;
+		}
+
+		if (isHit)
+		{
+			CIRCLE newSegment = *it;
+			newSegment.color = circles[0].color;
+			newSegment.movemode = 0;
+			int lastR = circles.back().r;
+			newSegment.r = (lastR > 1) ? lastR - 1 : 1;
+			circles.push_back(newSegment);
+
+			it = tail_circles.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+// void spawn_item()										아이템 위치 설정
+// void init_setting(CIRCLE& c)								머리원 값 세팅
+// bool IsCollision(int x, int y)							충돌 여부(이동로직에 사용)
+// void head_move(CIRCLE& head)								머리원 이동
+// void follow_move(CIRCLE& cur, const CIRCLE& prev)		꼬리원 머리따라 이동
+// void tail_move(CIRCLE& t)								독립된 꼬리원 5가지 이동 로직
+// void item_to_circle(vector<CIRCLE>& c, COLORREF ccolor)	습득한 아이템을 독립된 꼬리원으로 전환
+// void tailtail_collision(vector<CIRCLE>& t)				독립된 꼬리원끼리 부딪혔을 경우 처리
+// void tail_eaten_head(vector<CIRCLE>& circles, vector<CIRCLE>& tail_circles) 머리가 꼬리를 먹었을 경우 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -81,43 +350,74 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	HPEN hPen, oldPen;
 	HBRUSH hBrush, oldBrush;
 	TCHAR str[50];
-	static vector<CIRCLE> circles(20);
-	static vector<CIRCLE> tail_circles(20);
+	static vector<CIRCLE> circles;
+	static vector<CIRCLE> tail_circles;
 	static RECT rt;
-	static int speed = 500;
+	static int speed = 100;		// 50 ~ 200, default = 100, +-10
 	static int mx, my;
-	static int board[40][40] = {0};
+	static bool game_start = false;
+	static bool move_left = false;
+	static bool move_right = false;
+	static bool move_up = false;
+	static bool move_down = false;
+	static int obstacle = 0;
 
 	switch (uMsg) {
 	case WM_CREATE:
-		init_setting(circles[0]);
+		CIRCLE head;
+		init_setting(head);
+		circles.push_back(head);
+		for (int i = 0; i < 20; i++) spawn_item();
+		SetTimer(hWnd, 1, speed, NULL);
 		break;
 	case WM_KEYDOWN:
 		if (wParam == 'S') {
-			
+			game_start = true;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_UP) {
-			
+			if(circles[0].primaryDir != 1)
+				circles[0].secondaryDir = circles[0].primaryDir;
+			circles[0].primaryDir = 3;
+
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_RIGHT) {
+			if (circles[0].primaryDir != 2)
+				circles[0].secondaryDir = circles[0].primaryDir;
+			circles[0].primaryDir = 0;
 			
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_DOWN) {
+			if (circles[0].primaryDir != 3)
+				circles[0].secondaryDir = circles[0].primaryDir;
+			circles[0].primaryDir = 1;
 			
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_LEFT) {
+			if (circles[0].primaryDir != 0)
+				circles[0].secondaryDir = circles[0].primaryDir;
+			circles[0].primaryDir = 2;
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_PLUS || wParam == VK_ADD) {
+			if (speed > 10) {
+				speed -= 10;
+				KillTimer(hWnd, 1);
+				SetTimer(hWnd, 1, speed, NULL);
+			}
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT) {
+			if (speed < 200) {
+				speed += 10;
+				KillTimer(hWnd, 1);
+				SetTimer(hWnd, 1, speed, NULL);
+			}
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
@@ -154,86 +454,65 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			oldPen = (HPEN)SelectObject(memDC, hPen);
 			for (int i = 0; i < 40; ++i) {
 				for (int j = 0; j < 40; ++j) {
-					Rectangle(hDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+					Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
 				}
 			}
 			SelectObject(memDC, oldPen);
 			DeleteObject(hPen);
-
-			for (int i = 0; i < 4; ++i) {
-				//---------------------------------------------------
-				if (!sectors[i].reverse) {
-					hPen = CreatePen(PS_SOLID, 2, RGB(102, 255, 255));
-					oldPen = (HPEN)SelectObject(memDC, hPen);
-				}
-				else {
-					hPen = CreatePen(PS_SOLID, 2, RGB(153, 0, 0));
-					oldPen = (HPEN)SelectObject(memDC, hPen);
-				}
-				if (sectors[i].orbit == 0) {
-					Ellipse(memDC, sectors[i].centerX - r, sectors[i].centerY - r,
-						sectors[i].centerX + r, sectors[i].centerY + r);
-				}
-				else if (sectors[i].orbit == 1) {
-					Rectangle(memDC, sectors[i].centerX - r - 4, sectors[i].centerY - r,
-						sectors[i].centerX + r + 5, sectors[i].centerY + r + 2);
-				}
-				else if (sectors[i].orbit == 2) {
-					POINT tri[3] = { {sectors[i].centerX , sectors[i].centerY - r}, {sectors[i].centerX - r , sectors[i].centerY + r}, {sectors[i].centerX + r , sectors[i].centerY + r} };
-					Polygon(memDC, tri, 3);
-				}
-				SelectObject(memDC, oldPen);
-				DeleteObject(hPen);
-				//---------------------------------------------------
-				if (!sectors[i].reverse) {
-					hBrush = CreateSolidBrush(RGB(255, 0, 0));
-					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
-				}
-				else {
-					hBrush = CreateSolidBrush(RGB(0, 255, 255));
-					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
-				}
-				Ellipse(memDC, sectors[i].centerX - 5, sectors[i].centerY - 5, sectors[i].centerX + 5, sectors[i].centerY + 5);
-				SelectObject(memDC, oldBrush);
-				DeleteObject(hBrush);
-				//---------------------------------------------------			
-				if (i == selected && sectors[i].reverse == true) {
-					hBrush = CreateSolidBrush(RGB(255 - GetRValue(sectors[i].color), 255 - GetGValue(sectors[i].color), 255 - GetBValue(sectors[i].color)));
-					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
-				}
-				else {
-					hBrush = CreateSolidBrush(sectors[i].color);
-					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
-				}
-				if (sectors[i].moving_shape == 0) {
-					Ellipse(memDC, sectors[i].mx - 10, sectors[i].my - 10, sectors[i].mx + 10, sectors[i].my + 10);
-				}
-				else {
-					Rectangle(memDC, sectors[i].mx - 10, sectors[i].my - 10, sectors[i].mx + 10, sectors[i].my + 10);
-				}
-				SelectObject(memDC, oldBrush);
-				DeleteObject(hBrush);
-				//---------------------------------------------------
-				if (selected != -1) {
-					hPen = CreatePen(PS_SOLID, 2, RGB(0, 0, 0));
-					oldPen = (HPEN)SelectObject(memDC, hPen);
-
-					SelectObject(memDC, GetStockObject(NULL_BRUSH));
-
-					Rectangle(memDC, sectors[selected].centerX - 150, sectors[selected].centerY - 150,
-						sectors[selected].centerX + 150, sectors[selected].centerY + 150);
-
-					SelectObject(memDC, oldPen);
-					DeleteObject(hPen);
+			//-------------------------------장애물 그리기
+			for (int i = 0; i < 40; ++i) {
+				for (int j = 0; j < 40; ++j) {
+					if (board[j][i] == 1) {
+						hBrush = CreateSolidBrush(RGB(255, 0, 0));
+						SelectObject(memDC, hBrush);
+						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						DeleteObject(hBrush);
+					}
 				}
 			}
-			if (selected != -1) {
-				SetBkMode(memDC, TRANSPARENT);
-				SetTextColor(memDC, RGB(0, 0, 0));
-				SetTextAlign(memDC, TA_CENTER | TA_TOP);
-				_stprintf_s(str, L"Speed : %d", sectors[selected].speed);
-				TextOut(memDC, 400, 300, str, _tcslen(str));
+			//--------------------------------아이템 그리기
+			for (int i = 0; i < 40; ++i) {
+				for (int j = 0; j < 40; ++j) {
+					if (board[j][i] == 2) {
+						hBrush = CreateSolidBrush(colorBoard[j][i]);
+						SelectObject(memDC, hBrush);
+						Rectangle(memDC, 25 + 20 * j, 25 + 20 * i, 35 + 20 * j, 35 + 20 * i);
+						DeleteObject(hBrush);
+					}
+				}
 			}
+			//--------------------------------독립원 그리기
+			for (int i = (int)tail_circles.size() - 1; i >= 0; --i) {
+				hBrush = CreateSolidBrush(tail_circles[i].color);
+				oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+
+				int centerX = 20 + 20 * tail_circles[i].x + 10;
+				int centerY = 20 + 20 * tail_circles[i].y + 10;
+
+				Ellipse(memDC, centerX - tail_circles[i].r, centerY - tail_circles[i].r,
+					centerX + tail_circles[i].r, centerY + tail_circles[i].r);
+
+				SelectObject(memDC, oldBrush);
+				DeleteObject(hBrush);
+			}
+			//------------------------주인공과 꼬리원 그리기
+			for (int i = (int)circles.size() - 1; i >= 0; --i) {
+				hBrush = CreateSolidBrush(circles[i].color);
+				SelectObject(memDC, hBrush);
+
+				int centerX = 20 + 20 * circles[i].x + 10;
+				int centerY = 20 + 20 * circles[i].y + 10;
+
+				Ellipse(memDC, centerX - circles[i].r, centerY - circles[i].r, centerX + circles[i].r, centerY + circles[i].r);
+
+				DeleteObject(hBrush);
+			}
+			
+			SetBkMode(memDC, TRANSPARENT);
+			SetTextColor(memDC, RGB(0, 0, 0));
+			SetTextAlign(memDC, TA_CENTER | TA_TOP);
+			_stprintf_s(str, L"Speed : %d", speed);
+			TextOut(memDC, 50, 850, str, _tcslen(str));
 
 			// 완성된 백버퍼를 실제 화면으로 한 번에 복사
 			BitBlt(hDC, 0, 0, LEN, HEI, memDC, 0, 0, SRCCOPY);
@@ -247,213 +526,74 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_ERASEBKGND:
 		return 1;
 	case WM_LBUTTONDOWN:
-		if (selected != -1) {
-			if (sectors[selected].speed > 10)
-				sectors[selected].speed--;
-			else if (sectors[selected].speed == 10)
-				sectors[selected].speed = 40;
-			KillTimer(hWnd, selected);
-			SetTimer(hWnd, selected, sectors[selected].speed, NULL);
-
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		
+		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 	case WM_RBUTTONDOWN:
-		if (selected != -1) {
-			int oldCenterX = sectors[selected].centerX;
-			int oldCenterY = sectors[selected].centerY;
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
 
-			if (!sectors[selected].right_clicked) {
-				sectors[selected].centerX = LOWORD(lParam);
-				sectors[selected].centerY = HIWORD(lParam);
-				sectors[selected].right_clicked = true;
-			}
-			else {
-				if (selected == 0) {
-					sectors[selected].centerX = 200;
-					sectors[selected].centerY = 150;
-					sectors[selected].right_clicked = false;
+		{
+			int boardX = (mx - 20) / 20;
+			int boardY = (my - 20) / 20;
+
+			if ((boardX >= 0 && boardX < 40 && boardY >= 0 && boardY < 40) && (board[boardX][boardY] == 0 || board[boardX][boardY] == 1)) {
+				if (board[boardX][boardY] == 0) {
+					board[boardX][boardY] = 1;
+					obstacle++;
 				}
-				else if (selected == 1) {
-					sectors[selected].centerX = 600;
-					sectors[selected].centerY = 150;
-					sectors[selected].right_clicked = false;
-				}
-				else if (selected == 2) {
-					sectors[selected].centerX = 200;
-					sectors[selected].centerY = 450;
-					sectors[selected].right_clicked = false;
-				}
-				else if (selected == 3) {
-					sectors[selected].centerX = 600;
-					sectors[selected].centerY = 450;
-					sectors[selected].right_clicked = false;
+				else if (board[boardX][boardY] == 1) {
+					board[boardX][boardY] = 0;
+					obstacle--;
 				}
 			}
-			int offsetX = sectors[selected].centerX - oldCenterX;
-			int offsetY = sectors[selected].centerY - oldCenterY;
-
-			sectors[selected].mx += offsetX;
-			sectors[selected].my += offsetY;
-
-			InvalidateRect(hWnd, NULL, FALSE);
 		}
 
-		break;
-	case WM_RBUTTONDBLCLK:
-		sectors[selected].reverse = !sectors[selected].reverse;
+		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 	case WM_TIMER:
 		switch (wParam) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-			if (sectors[wParam].clockwise == true) {
-				if (sectors[wParam].orbit == 0) {
-					sectors[wParam].angle += 0.05f;
-					sectors[wParam].mx = (int)(sectors[wParam].centerX + r * cos(sectors[wParam].angle));
-					sectors[wParam].my = (int)(sectors[wParam].centerY + r * sin(sectors[wParam].angle));
-					if (sectors[wParam].angle > 6.28318f) sectors[wParam].angle = 0.0f;
+		case 1: // 메인 루프 타이머
+			if (game_start) {
+				// 1. 주인공과 꼬리들 이동
+				head_move(circles[0]);
+				for (int i = 1; i < (int)circles.size(); i++) {
+					follow_move(circles[i], circles[i - 1]);
 				}
-				else if (sectors[wParam].orbit == 1) {
-					if (sectors[wParam].rect_dire == 0) {
-						if (sectors[wParam].mx >= sectors[wParam].centerX + r) {
-							sectors[wParam].rect_dire = 1;
-							sectors[wParam].my += 6;
-						}
-						else sectors[wParam].mx += 6;
+
+				// 2. 독립 꼬리원끼리 충돌 체크
+				tailtail_collision(tail_circles);
+
+				// 3. 주인공과 독립원 충돌
+				tail_eaten_head(circles, tail_circles);
+
+				// 4. 독립 꼬리원 이동
+				for (int i = 0; i < (int)tail_circles.size(); i++) {
+					if (tail_circles[i].movemode == 0) {	// 연결된 독립원들
+						follow_move(tail_circles[i], tail_circles[i - 1]);
 					}
-					else if (sectors[wParam].rect_dire == 1) {
-						if (sectors[wParam].my >= sectors[wParam].centerY + r) {
-							sectors[wParam].rect_dire = 2;
-							sectors[wParam].mx -= 6;
-						}
-						else sectors[wParam].my += 6;
-					}
-					else if (sectors[wParam].rect_dire == 2) {
-						if (sectors[wParam].mx <= sectors[wParam].centerX - r) {
-							sectors[wParam].rect_dire = 3;
-							sectors[wParam].my -= 6;
-						}
-						else sectors[wParam].mx -= 6;
-					}
-					else if (sectors[wParam].rect_dire == 3) {
-						if (sectors[wParam].my <= sectors[wParam].centerY - r) {
-							sectors[wParam].rect_dire = 0;
-							sectors[wParam].mx += 6;
-						}
-						else sectors[wParam].my -= 6;
+					else {
+						tail_move(tail_circles[i]);
 					}
 				}
-				else if (sectors[wParam].orbit == 2) {
-					if (sectors[wParam].tri_dire == 0) {
-						if (sectors[wParam].mx >= sectors[wParam].centerX + r && sectors[wParam].my >= sectors[wParam].centerY + r) {
-							sectors[wParam].tri_dire = 1;
-							sectors[wParam].mx -= 6;
-						}
-						else {
-							sectors[wParam].mx += 3;
-							sectors[wParam].my += 6;
-						}
-					}
-					else if (sectors[wParam].tri_dire == 1) {
-						if (sectors[wParam].mx <= sectors[wParam].centerX - r) {
-							sectors[wParam].tri_dire = 2;
-							sectors[wParam].mx += 3;
-							sectors[wParam].my -= 6;
-						}
-						else sectors[wParam].mx -= 6;
-					}
-					else if (sectors[wParam].tri_dire == 2) {
-						if (sectors[wParam].mx >= sectors[wParam].centerX && sectors[wParam].my <= sectors[wParam].centerY - r) {
-							sectors[wParam].tri_dire = 0;
-							sectors[wParam].mx += 3;
-							sectors[wParam].my += 6;
-						}
-						else {
-							sectors[wParam].mx += 3;
-							sectors[wParam].my -= 6;
-						}
-					}
-				}
-			}
-			else {
-				if (sectors[wParam].orbit == 0) {
-					sectors[wParam].angle -= 0.05f;
-					sectors[wParam].mx = (int)(sectors[wParam].centerX + r * cos(sectors[wParam].angle));
-					sectors[wParam].my = (int)(sectors[wParam].centerY + r * sin(sectors[wParam].angle));
-					if (sectors[wParam].angle < 0.0f) sectors[wParam].angle = 6.28318f;
-				}
-				else if (sectors[wParam].orbit == 1) {
-					if (sectors[wParam].rect_dire == 0) {
-						if (sectors[wParam].mx <= sectors[wParam].centerX - r) {
-							sectors[wParam].rect_dire = 1;
-							sectors[wParam].my += 6;
-						}
-						else sectors[wParam].mx -= 6;
-					}
-					else if (sectors[wParam].rect_dire == 1) {
-						if (sectors[wParam].my >= sectors[wParam].centerY + r) {
-							sectors[wParam].rect_dire = 2;
-							sectors[wParam].mx += 6;
-						}
-						else sectors[wParam].my += 6;
-					}
-					else if (sectors[wParam].rect_dire == 2) {
-						if (sectors[wParam].mx >= sectors[wParam].centerX + r) {
-							sectors[wParam].rect_dire = 3;
-							sectors[wParam].my -= 6;
-						}
-						else sectors[wParam].mx += 6;
-					}
-					else if (sectors[wParam].rect_dire == 3) {
-						if (sectors[wParam].my <= sectors[wParam].centerY - r) {
-							sectors[wParam].rect_dire = 0;
-							sectors[wParam].mx -= 6;
-						}
-						else sectors[wParam].my -= 6;
-					}
-				}
-				else if (sectors[wParam].orbit == 2) {
-					if (sectors[wParam].tri_dire == 0) {
-						if (sectors[wParam].mx <= sectors[wParam].centerX - r && sectors[wParam].my >= sectors[wParam].centerY + r) {
-							sectors[wParam].tri_dire = 1;
-							sectors[wParam].mx += 6;
-						}
-						else {
-							sectors[wParam].mx -= 3;
-							sectors[wParam].my += 6;
-						}
-					}
-					else if (sectors[wParam].tri_dire == 1) {
-						if (sectors[wParam].mx >= sectors[wParam].centerX + r) {
-							sectors[wParam].tri_dire = 2;
-							sectors[wParam].mx -= 3;
-							sectors[wParam].my -= 6;
-						}
-						else sectors[wParam].mx += 6;
-					}
-					else if (sectors[wParam].tri_dire == 2) {
-						if (sectors[wParam].mx <= sectors[wParam].centerX && sectors[wParam].my <= sectors[wParam].centerY - r) {
-							sectors[wParam].tri_dire = 0;
-							sectors[wParam].mx -= 3;
-							sectors[wParam].my += 6;
-						}
-						else {
-							sectors[wParam].mx -= 3;
-							sectors[wParam].my -= 6;
-						}
-					}
+
+				// 5. 이중체크
+				tail_eaten_head(circles, tail_circles);
+
+				if (board[circles[0].x][circles[0].y] == 2) {
+					COLORREF itemColor = colorBoard[circles[0].x][circles[0].y];
+					for(int i = 0; i < circles.size(); ++i)
+						circles[i].color = itemColor;
+
+					board[circles[0].x][circles[0].y] = 0; // 아이템 제거
+					item_to_circle(tail_circles, itemColor); // 새로운 독립 원 생성
 				}
 			}
 			break;
-		}
-		if (wParam == 4) {
-			for (int i = 0; i < 4; ++i) {
-				sectors[i].color = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
-			}
-			InvalidateRect(hWnd, NULL, FALSE);
+
+		case 2:
 			break;
 		}
 		InvalidateRect(hWnd, NULL, TRUE);
