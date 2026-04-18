@@ -887,7 +887,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		UpdateWindow(hWnd);
 		break;
 	case WM_DESTROY:
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < 2; ++i)
 			KillTimer(hWnd, i);
 		PostQuitMessage(0);
 		break;

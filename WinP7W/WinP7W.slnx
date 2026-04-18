@@ -6,4 +6,5 @@
   <Project Path="WinP7W/WinP7W.vcxproj" Id="77a0634c-1b8d-4369-ac66-14c258e42e27" />
   <Project Path="WinP7W_3_2/WinP7W_3_2.vcxproj" Id="27a05b8a-9121-4ec1-8c42-1d847f7c5bf8" />
   <Project Path="WinP7W_3_3/WinP7W_3_3.vcxproj" Id="33f05d96-b35c-4003-8b44-befc51b90545" />
+  <Project Path="WinP7W_3_4/WinP7W_3_4.vcxproj" Id="3a8a90ab-c4f4-479a-b316-54df835c63d2" />
 </Solution>
