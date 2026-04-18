@@ -69,7 +69,7 @@ typedef struct {
 	int primaryDir;	// 0 우 / 1 하 / 2 좌 / 3 상
 	int secondaryDir;
 	bool shape; // true 원 false 삼각형
-	bool jump;
+	int jump;
 	int x, y;
 	int prevX, prevY;
 	int pos;	// 원의 순서
@@ -86,7 +86,7 @@ void init_setting(CIRCLE &c) {
 	c.primaryDir = 0;
 	c.secondaryDir = 1;
 	c.shape = true;
-	c.jump = false;
+	c.jump = 0;
 	c.x = uid_drawBoard(g);
 	c.y = uid_drawBoard(g);
 	int pos = 0;
@@ -130,6 +130,15 @@ void head_move(CIRCLE& head) {		// 머리 움직임
 	else if (head.primaryDir == 2) px--; // 좌
 	else if (head.primaryDir == 3) py--; // 상
 
+	if (head.jump == 1) {
+		py--;
+		head.jump = 2;
+	}
+	else if (head.jump == 2) {
+		py++;
+		head.jump = 0;
+	}
+
 	if (!IsCollision(px, py)) {
 		head.x = px;
 		head.y = py;
@@ -164,6 +173,32 @@ void head_move(CIRCLE& head) {		// 머리 움직임
 				head.primaryDir = (head.primaryDir + 2) % 4;
 				head.secondaryDir = osDir;
 			}
+		}
+	}
+}
+
+void a_head_move(CIRCLE& head, bool& A_move) {
+	head.prevX = head.x;
+	head.prevY = head.y;
+
+	if (head.primaryDir == 0) {
+		if (head.x < 39) head.x++;
+		else {
+			if (head.y < 39) {
+				head.y++;
+				head.primaryDir = 2;
+			}
+			else A_move = false;
+		}
+	}
+	else if (head.primaryDir == 2) {
+		if (head.x > 0) head.x--;
+		else {
+			if (head.y < 39) {
+				head.y++;
+				head.primaryDir = 0;
+			}
+			else A_move = false;
 		}
 	}
 }
@@ -350,13 +385,18 @@ void tailtail_collision(vector<CIRCLE>& t) {
 }
 
 void tail_eaten_head(vector<CIRCLE>& circles, vector<CIRCLE>& tail_circles) {
+	int hx = circles[0].x;
+	int hy = circles[0].y;
+	int hpx = circles[0].prevX;
+	int hpy = circles[0].prevY;
+
 	for (auto it = tail_circles.begin(); it != tail_circles.end(); )
 	{
 		bool isHit = false;
-		int hx = circles[0].x;
-		int hy = circles[0].y;
 		int tx = it->x;	// 독립원의 중심 X칸
 		int ty = it->y;	// 독립원의 중심 Y칸
+		int tpx = it->prevX;
+		int tpy = it->prevY;
 
 		if (it->r >= 1 && it->r <= 10) {		// 원이 한 칸보다 작을때
 			if (hx == tx && hy == ty) isHit = true;
@@ -372,6 +412,12 @@ void tail_eaten_head(vector<CIRCLE>& circles, vector<CIRCLE>& tail_circles) {
 		else if (it->r >= 19 && it->r <= 30) {	// 원의 반지름이 14.14 + 4.14보다 클 때
 			if (hx >= tx - 1 && hx <= tx + 1 && hy >= ty - 1 && hy <= ty + 1)
 				isHit = true;
+		}
+
+		if (!isHit) {		// 교차 이동시 판별
+			if (hx == tpx && hy == tpy && tx == hpx && ty == hpy) {
+				isHit = true;
+			}
 		}
 
 		if (isHit)
@@ -396,6 +442,7 @@ void tail_eaten_head(vector<CIRCLE>& circles, vector<CIRCLE>& tail_circles) {
 // void init_setting(CIRCLE& c)								머리원 값 세팅
 // bool IsCollision(int x, int y)							충돌 여부(이동로직에 사용)
 // void head_move(CIRCLE& head)								머리원 이동
+// void a_head_move(CIRCLE& head)							a 머리원 이동
 // void follow_move(CIRCLE& cur, const CIRCLE& prev)		꼬리원 머리따라 이동
 // void tail_move(CIRCLE& t)								독립된 꼬리원 5가지 이동 로직
 // void item_to_circle(vector<CIRCLE>& c, COLORREF ccolor)	습득한 아이템을 독립된 꼬리원으로 전환
@@ -420,6 +467,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static bool move_up = false;
 	static bool move_down = false;
 	static int obstacle = 0;
+	static bool T_fakemove = false;
+	static bool A_move = false;
+	static vector<CIRCLE> original_tails;
+	static int head_tail_count = 0;
+	static CIRCLE saved_head;
 
 	switch (uMsg) {
 	case WM_CREATE:
@@ -481,14 +533,55 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'J') {
+			circles[0].jump = 1;
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'T') {
+			int temp_r = circles[0].r;
+			for (int i = 0; i < (int)circles.size() - 1; ++i) {
+				circles[i].r = circles[i + 1].r;
+			}
+			circles[circles.size() - 1].r = temp_r;
+
+			T_fakemove = true;
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'A') {
+			A_move = !A_move;
+			if (A_move) {
+				original_tails = tail_circles;
+				head_tail_count = (int)circles.size();
+				saved_head = circles[0];
+
+				for (auto& t : tail_circles) {
+					t.movemode = 0;
+					if (circles.back().r > 1)
+						t.r = circles.back().r - 1;
+					else
+						t.r = 1;
+					// t.color = circles[0].color; 머리색 통일 or 꼬리색 그대로
+					circles.push_back(t);
+				}
+				tail_circles.clear();
+				
+				KillTimer(hWnd, 1);
+				SetTimer(hWnd, 2, 1, NULL);
+
+				circles[0].x = 0; circles[0].y = 0;
+				circles[0].primaryDir = 0;
+			}
+			else {
+				KillTimer(hWnd, 2);
+				SetTimer(hWnd, 1, speed, NULL);
+
+				if ((int)circles.size() > head_tail_count) {
+					circles.erase(circles.begin() + head_tail_count, circles.end());
+				}
+				tail_circles = original_tails; // 독립 원 복구
+				circles[0] = saved_head;
+			}
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
@@ -606,11 +699,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		if (boardX == circles[0].x && boardY == circles[0].y) {
 			circles.erase(circles.begin() + 1, circles.end());
 			circles[0].shape = !circles[0].shape;
+			circles[0].r = 10;	// t로직 이후 클릭시 머리원 사이즈가 작아진 채로 고정되는 일 방지
 		}
-		else if (boardX >= 0 && boardX < 40 && boardY >= 0 && boardY < 40) {
-			circles[0].targetX = boardX;
-			circles[0].targetY = boardY;
-			circles[0].isMovingToTarget = true;
+		else {
+			bool tailClicked = false;
+			for (int i = 1; i < (int)circles.size(); ++i) {
+				if (circles[i].x == boardX && circles[i].y == boardY) {
+					CIRCLE& leaderTail = circles[i];
+
+					leaderTail.movemode = uid_movemode(g);
+					leaderTail.case3_count = 0;
+					leaderTail.bigger = true;
+					if (leaderTail.movemode == 1 || leaderTail.movemode == 3)
+						leaderTail.primaryDir = 0;
+					else if (leaderTail.movemode == 2)
+						leaderTail.primaryDir = 1;
+
+					for (int j = i; j < (int)circles.size(); ++j) {
+						tail_circles.push_back(circles[j]);
+					}
+
+					circles.erase(circles.begin() + i, circles.end());
+
+					tailClicked = true;
+					break;
+				}
+			}
+
+			if (!tailClicked && boardX >= 0 && boardX < 40 && boardY >= 0 && boardY < 40) {
+				circles[0].targetX = boardX;
+				circles[0].targetY = boardY;
+				circles[0].isMovingToTarget = true;
+			}
 		}
 
 
@@ -689,44 +809,78 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	//	break;
 	case WM_TIMER:
 		if (game_start) {
-			// [1] 모든 원(주인공군, 독립군)의 현재 위치를 prev에 저장
-			for (int i = 0; i < (int)circles.size(); i++) {
-				circles[i].prevX = circles[i].x;
-				circles[i].prevY = circles[i].y;
-			}
-			for (int i = 0; i < (int)tail_circles.size(); i++) {
-				tail_circles[i].prevX = tail_circles[i].x;
-				tail_circles[i].prevY = tail_circles[i].y;
-			}
-
-			// [2] 실제 이동 수행
-			// 주인공 머리 이동
-			head_move(circles[0]);
-			// 주인공 꼬리들
-			for (int i = 1; i < (int)circles.size(); i++) {
-				follow_move(circles[i], circles[i - 1]);
-			}
-
-			// 독립 꼬리원들 이동
-			for (int i = 0; i < (int)tail_circles.size(); i++) {
-				if (tail_circles[i].movemode == 0) {
-					if (i > 0) follow_move(tail_circles[i], tail_circles[i - 1]);
+			switch (wParam) {
+			case 1:
+			{
+				if (T_fakemove) {
+					T_fakemove = false;
 				}
 				else {
-					tail_move(tail_circles[i]);
+					// [1] 모든 원(주인공군, 독립군)의 현재 위치를 prev에 저장
+					for (int i = 0; i < (int)circles.size(); i++) {
+						circles[i].prevX = circles[i].x;
+						circles[i].prevY = circles[i].y;
+					}
+					for (int i = 0; i < (int)tail_circles.size(); i++) {
+						tail_circles[i].prevX = tail_circles[i].x;
+						tail_circles[i].prevY = tail_circles[i].y;
+					}
+
+					// [2] 실제 이동 수행
+					// 주인공 머리 이동
+					head_move(circles[0]);
+					// 주인공 꼬리들
+					for (int i = 1; i < (int)circles.size(); i++) {
+						follow_move(circles[i], circles[i - 1]);
+					}
+
+					// 독립 꼬리원들 이동
+					for (int i = 0; i < (int)tail_circles.size(); i++) {
+						if (tail_circles[i].movemode == 0) {
+							if (i > 0) follow_move(tail_circles[i], tail_circles[i - 1]);
+						}
+						else {
+							tail_move(tail_circles[i]);
+						}
+					}
+
+					// [3] 이동이 끝난 후 충돌 판정
+					tailtail_collision(tail_circles);
+					tail_eaten_head(circles, tail_circles);
+
+					// [4] 아이템 체크
+					if (board[circles[0].x][circles[0].y] == 2) {
+						COLORREF itemColor = colorBoard[circles[0].x][circles[0].y];
+						for (int i = 0; i < (int)circles.size(); ++i) circles[i].color = itemColor;
+						board[circles[0].x][circles[0].y] = 0;
+						item_to_circle(tail_circles, itemColor);
+					}
 				}
+				break;
 			}
+			case 2:
+			{
+				a_head_move(circles[0], A_move);
 
-			// [3] 이동이 끝난 후 충돌 판정
-			tailtail_collision(tail_circles);
-			tail_eaten_head(circles, tail_circles);
+				// [2] 꼬리들 이동 (모든 원 추종)
+				for (int i = 1; i < (int)circles.size(); i++) {
+					circles[i].prevX = circles[i].x;
+					circles[i].prevY = circles[i].y;
+					follow_move(circles[i], circles[i - 1]);
+				}
 
-			// [4] 아이템 체크
-			if (board[circles[0].x][circles[0].y] == 2) {
-				COLORREF itemColor = colorBoard[circles[0].x][circles[0].y];
-				for (int i = 0; i < (int)circles.size(); ++i) circles[i].color = itemColor;
-				board[circles[0].x][circles[0].y] = 0;
-				item_to_circle(tail_circles, itemColor);
+				if (!A_move) {
+					KillTimer(hWnd, 2);
+					SetTimer(hWnd, 1, speed, NULL);
+
+					if ((int)circles.size() > head_tail_count) {
+						circles.erase(circles.begin() + head_tail_count, circles.end());
+					}
+					tail_circles = original_tails;
+					circles[0] = saved_head;
+				}
+				break;
+			}
 			}
 		}
 		InvalidateRect(hWnd, NULL, FALSE);
