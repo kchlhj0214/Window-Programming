@@ -156,8 +156,8 @@ void car_move(int idx, vector<CAR>& cars, vector<LIGHT>& lights, RECT rt, int cr
 	}
 
 	int step;
-	if (cur.safety_distance <= 80) step = 0;
-	else if (cur.safety_distance <= 110) step = 3;
+	if (cur.safety_distance <= 70) step = 0;
+	else if (cur.safety_distance <= 100) step = 3;
 	else step = 6;
 
 	if (cur.dir == 0) cur.x = cur.x - step;
