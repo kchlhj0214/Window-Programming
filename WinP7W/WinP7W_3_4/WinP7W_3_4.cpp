@@ -345,26 +345,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				for (int j = 0; j < 30; ++j) {
 					if (board[j][i] == 2) {
 						hBrush = CreateSolidBrush(RGB(255, 0, 0));
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 					else if (board[j][i] == 3) {
 						hBrush = CreateSolidBrush(RGB(0, 255, 0));
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 					else if (board[j][i] == 4) {
 						hBrush = CreateSolidBrush(RGB(0, 0, 255));
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 					else if (board[j][i] == 5) {
 						hBrush = CreateSolidBrush(RGB(255, 255, 102));
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 				}
@@ -376,43 +380,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				if (items[i].color == 1) {
 					hBrush = CreateSolidBrush(RGB(102, 255, 255));
-					SelectObject(memDC, hBrush);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 					if (i == 0)
 						Ellipse(memDC, centerX, centerY, centerX + 20, centerY + 20);
 
+					SelectObject(memDC, hBrush);
 					DeleteObject(hBrush);
 				}
 				else if (items[i].color == 2) {
 					hBrush = CreateSolidBrush(RGB(255, 0, 0));
-					SelectObject(memDC, hBrush);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 					Rectangle(memDC, centerX, centerY, centerX + 20, centerY + 20);
 
+					SelectObject(memDC, hBrush);
 					DeleteObject(hBrush);
 				}
 				else if (items[i].color == 3) {
 					hBrush = CreateSolidBrush(RGB(0, 255, 0));
-					SelectObject(memDC, hBrush);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 					Rectangle(memDC, centerX, centerY, centerX + 20, centerY + 20);
 
+					SelectObject(memDC, hBrush);
 					DeleteObject(hBrush);
 				}
 				else if (items[i].color == 4) {
 					hBrush = CreateSolidBrush(RGB(0, 0, 255));
-					SelectObject(memDC, hBrush);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 					Rectangle(memDC, centerX, centerY, centerX + 20, centerY + 20);
 
+					SelectObject(memDC, hBrush);
 					DeleteObject(hBrush);
 				}
 				else if (items[i].color == 5) {
 					hBrush = CreateSolidBrush(RGB(255, 255, 102));
-					SelectObject(memDC, hBrush);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 					Rectangle(memDC, centerX, centerY, centerX + 20, centerY + 20);
 
+					SelectObject(memDC, hBrush);
 					DeleteObject(hBrush);
 				}
 				

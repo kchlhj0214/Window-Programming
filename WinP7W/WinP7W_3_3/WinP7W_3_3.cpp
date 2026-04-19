@@ -112,13 +112,23 @@ void head_move(CIRCLE& head) {		// 머리 움직임
 			head.isMovingToTarget = false;
 		}
 		else {
-			// 목적지를 향해 X, Y축 중 하나씩 이동 (한 칸씩)
-			if (head.x < head.targetX) head.x++;
-			else if (head.x > head.targetX) head.x--;
-			else if (head.y < head.targetY) head.y++;
-			else if (head.y > head.targetY) head.y--;
+			int nx = head.x;
+			int ny = head.y;
 
-			return;
+			// 목적지를 향해 X, Y축 중 하나씩 이동 (한 칸씩)
+			if (nx < head.targetX) nx++;
+			else if (nx > head.targetX) nx--;
+			else if (ny < head.targetY) ny++;
+			else if (ny > head.targetY) ny--;
+
+			if (!IsCollision(nx, ny)) {
+				head.x = nx;
+				head.y = ny;
+				return;
+			}
+			else {		// 장애물 만나면 그냥 안내 취소
+				head.isMovingToTarget = false;
+			}
 		}
 	}
 
@@ -616,8 +626,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				for (int j = 0; j < 40; ++j) {
 					if (board[j][i] == 1) {
 						hBrush = CreateSolidBrush(RGB(255, 0, 0));
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 20 + 20 * j, 20 + 20 * i, 40 + 20 * j, 40 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 				}
@@ -627,8 +638,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				for (int j = 0; j < 40; ++j) {
 					if (board[j][i] == 2) {
 						hBrush = CreateSolidBrush(colorBoard[j][i]);
-						SelectObject(memDC, hBrush);
+						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 						Rectangle(memDC, 25 + 20 * j, 25 + 20 * i, 35 + 20 * j, 35 + 20 * i);
+						SelectObject(memDC, hBrush);
 						DeleteObject(hBrush);
 					}
 				}
@@ -650,7 +662,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			//------------------------주인공과 꼬리원 그리기
 			for (int i = (int)circles.size() - 1; i >= 0; --i) {
 				hBrush = CreateSolidBrush(circles[i].color);
-				SelectObject(memDC, hBrush);
+				oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
 				int centerX = 20 + 20 * circles[i].x + 10;
 				int centerY = 20 + 20 * circles[i].y + 10;
@@ -667,7 +679,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					pt[2].y = centerY + circles[i].r; // 오른쪽 아래
 					Polygon(memDC, pt, 3);
 				}
-
+				SelectObject(memDC, hBrush);
 				DeleteObject(hBrush);
 			}
 			
