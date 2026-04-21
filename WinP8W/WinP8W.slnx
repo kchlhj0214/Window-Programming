@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="WinP8W_4_1/WinP8W_4_1.vcxproj" />
+  <Project Path="WinP8W_4_2/WinP8W_4_2.vcxproj" />
+</Solution>
