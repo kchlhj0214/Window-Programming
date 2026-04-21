@@ -233,7 +233,7 @@ void light_timer(vector<LIGHT>& l, float& time, int light_mode) {
 	if (time > 0)
 		time -= 0.1;
 	else if (time <= 0)
-		time = 11.0f;
+		time = light_time;
 }
 
 void set_man_target(MAN& man, const vector<LIGHT>& l, int light_mode) {

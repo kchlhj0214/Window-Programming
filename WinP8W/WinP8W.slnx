@@ -3,6 +3,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="WinP8W_4_1/WinP8W_4_1.vcxproj" />
-  <Project Path="WinP8W_4_2/WinP8W_4_2.vcxproj" />
+  <Project Path="WinP8W_4_1/WinP8W_4_1.vcxproj" Id="8888b10e-bfe5-4b7f-8f63-ed522044a528" />
+  <Project Path="WinP8W_4_2/WinP8W_4_2.vcxproj" Id="c1472743-4afa-4986-bdd1-c47cf8db5c4d" />
 </Solution>
