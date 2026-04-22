@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -433,7 +433,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_SHAPE_RECTANGLE:
-			if (selected != -1 && selected != 1) {
+			if (selected != -1 && sectors[selected].orbit != 1) {
 				sectors[selected].orbit = 1;
 				sectors[selected].rect_dire = 0;
 				sectors[selected].tri_dire = 0;
@@ -446,7 +446,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_SHAPE_TRIANGLE:
-			if (selected != -1 && selected != 2) {
+			if (selected != -1 && sectors[selected].orbit != 2) {
 				sectors[selected].orbit = 2;
 				sectors[selected].rect_dire = 0;
 				sectors[selected].tri_dire = 0;
