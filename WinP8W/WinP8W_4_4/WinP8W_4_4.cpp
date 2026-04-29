@@ -12,6 +12,9 @@
 #define board_hei 10
 #define mine_num 20
 #define item_num 10
+#define CELL_SIZE 40
+#define START_X 10
+#define START_Y 10
 
 using namespace std;
 random_device rd;
@@ -57,12 +60,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	return Message.wParam;
 }
 
-static int closed_board[10][10] = {0};
-static int opened_board[10][10] = {0};
+int closed_board[board_len][board_hei] = {0};
+int opened_board[board_len][board_hei] = {0};
+vector <COLORREF> pie_color;
+bool game_end = false;
+int score = 0;
+bool show_score = false;
+int mode = 0;
+bool isDragging = false;
+POINT startPT, endPT;
+bool IsHint = false;
 
 void init_setting()
 {
+	game_end = false;
+	score = 0;
 	int x, y;
+
+	for (int i = 0; i < board_hei; ++i) {
+		for (int j = 0; j < board_len; ++j) {
+			closed_board[i][j] = 0;
+			opened_board[i][j] = 0;
+		}
+	}
+
 	for (int i = 0; i < pie_num * 4; ++i) {		// 파이 생성
 		do {
 			x = uid_borad_len(g);
@@ -70,6 +91,9 @@ void init_setting()
 		} while (closed_board[x][y] != 0);
 		closed_board[x][y] = i + 3;
 	}
+	pie_color.clear();
+	for (int i = 0; i < pie_num; ++i)
+		pie_color.push_back(RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g)));
 
 	for (int i = 0; i < mine_num; ++i) {		// 지뢰 생성
 		do {
@@ -79,12 +103,74 @@ void init_setting()
 		closed_board[x][y] = 1;
 	}
 
-	for (int i = 0; i < item_num; ++i) {		// 지뢰 생성
+	for (int i = 0; i < item_num; ++i) {		// 아이템 생성
 		do {
 			x = uid_borad_len(g);
 			y = uid_borad_hei(g);
 		} while (closed_board[x][y] != 0);
 		closed_board[x][y] = 2;
+	}
+}
+
+void CheckCompleteCircle(int lastI, int lastJ, int& score) {
+	int val = closed_board[lastI][lastJ];
+	if (val <= 2) return;
+
+	int targetGroup = (val - 3) / 4;
+	int openedCount = 0;
+
+	for (int i = 0; i < board_len; ++i) {
+		for (int j = 0; j < board_hei; ++j) {
+			int currentVal = closed_board[i][j];
+			if (currentVal > 2 && (currentVal - 3) / 4 == targetGroup) {
+				if (opened_board[i][j] == 1) {
+					openedCount++;
+				}
+			}
+		}
+	}
+
+	if (openedCount == 4)
+		score++;
+}
+
+void OpenCellEvent(HWND hWnd, int i, int j, int& score) {
+	switch (closed_board[i][j]) {
+	case 1:
+		game_end = true;
+		InvalidateRect(hWnd, NULL, FALSE);
+		break;
+
+	case 2:
+	{
+		vector<int> temp(pie_num + 1);
+
+		for (int i = 0; i < board_len; ++i) {		// 현재 열린 파이 번호 저장
+			for (int j = 0; j < board_hei; ++j) {
+				if (opened_board[i][j] == 1 && closed_board[i][j] > 2) {
+					temp[(closed_board[i][j] - 3) / 4] = 1;
+				}
+			}
+		}
+
+		for (int i = 0; i < board_len; ++i) {
+			for (int j = 0; j < board_hei; ++j) {
+				for (int k = 0; k < pie_num; ++k) {
+					if (opened_board[i][j] == 0 && closed_board[i][j] > 2 && k == ((closed_board[i][j] - 3) / 4) && temp[k] == 1) {
+						opened_board[i][j] = 1;
+						CheckCompleteCircle(i, j, score);
+					}
+				}
+			}
+		}
+	}
+	break;
+
+	default:
+		if (closed_board[i][j] > 2) {
+			CheckCompleteCircle(i, j, score);
+		}
+		break;
 	}
 }
 
@@ -98,11 +184,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static RECT rt;
 	static int mx, my;
 
-	static int score = 0;
-	static bool show_score = false;
-
 	switch (uMsg) {
 	case WM_CREATE:
+		break;
+	case WM_KEYDOWN:
+		if (wParam == 'M') {
+			mode = (mode == 0) ? 1 : 0;
+			isDragging = false;
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
 		break;
 	case WM_SIZE:
 		InvalidateRect(hWnd, NULL, FALSE);
@@ -117,6 +207,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return 0;
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
+		GetClientRect(hWnd, &rt);
 		{
 			// 백버퍼 생성
 			HDC memDC = CreateCompatibleDC(hDC);
@@ -126,14 +217,186 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// 배경 지우기 (더블 버퍼링의 핵심: 하얀색으로 백버퍼를 채움)
 			FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
 
-			
+			HBRUSH hBgBrush = CreateSolidBrush(RGB(245, 245, 245));
+			FillRect(memDC, &rt, hBgBrush);
+			DeleteObject(hBgBrush);
 
-			if(show_score) {
+			HBRUSH hBoardBrush = CreateSolidBrush(RGB(255, 255, 255));
+
+			for (int i = 0; i < board_len; ++i) {
+				for (int j = 0; j < board_hei; ++j) {
+					Rectangle(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE);
+					if (opened_board[i][j] == 0) {
+						HBRUSH hBrush = CreateSolidBrush(RGB(200, 200, 200));
+						HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+						Rectangle(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE);
+						SelectObject(memDC, oldBrush);
+						DeleteObject(hBrush);
+					}
+					else if (opened_board[i][j] == 1) {
+						int x1 = START_X + j * CELL_SIZE;
+						int y1 = START_Y + i * CELL_SIZE;
+						int x2 = x1 + CELL_SIZE;
+						int y2 = y1 + CELL_SIZE;
+						int midX = x1 + CELL_SIZE / 2;
+						int midY = y1 + CELL_SIZE / 2;
+						if (closed_board[i][j] == 1) {
+							SetTextColor(memDC, RGB(255, 0, 0));
+							SetBkMode(memDC, TRANSPARENT);
+
+							HFONT hFont = CreateFont(CELL_SIZE * 0.75, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+								DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+								DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
+							HFONT oldFont = (HFONT)SelectObject(memDC, hFont);
+
+							UINT oldAlign = SetTextAlign(memDC, TA_CENTER | TA_BASELINE);
+
+							TextOut(memDC, midX, midY + (int)(CELL_SIZE * 0.25), L"B", 1);
+
+							SetTextAlign(memDC, oldAlign);
+							SelectObject(memDC, oldFont);
+							DeleteObject(hFont);
+						}
+						else if (closed_board[i][j] == 2) {
+							HBRUSH hItemBrush = CreateSolidBrush(RGB(255, 255, 0));
+							HBRUSH oldItemBrush = (HBRUSH)SelectObject(memDC, hItemBrush);
+
+							POINT pts[4] = { { midX, y1 }, { x2, midY }, { midX, y2 }, { x1, midY } };
+
+							Polygon(memDC, pts, 4);
+
+							SelectObject(memDC, oldItemBrush);
+							DeleteObject(hItemBrush);
+						}
+						else if (closed_board[i][j] > 2) {
+							int val = closed_board[i][j] - 3;
+							int remainder = val % 4;
+							int colorIdx = val / 4;
+
+							HBRUSH hBrush = CreateSolidBrush(pie_color[colorIdx]);
+							HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+
+							if (remainder == 0) Pie(memDC, x1, y1, x2, y2, midX, y1, x1, midY);
+							else if (remainder == 1) Pie(memDC, x1, y1, x2, y2, x2, midY, midX, y1);
+							else if (remainder == 2) Pie(memDC, x1, y1, x2, y2, midX, y2, x2, midY);
+							else if (remainder == 3) Pie(memDC, x1, y1, x2, y2, x1, midY, midX, y2);
+
+							SelectObject(memDC, oldBrush);
+							DeleteObject(hBrush);
+							/*if ((closed_board[i][j] - 3) % 4 == 0) {
+								HBRUSH hBrush = CreateSolidBrush(pie_color[(closed_board[i][j] - 3) / 4]);
+								Pie(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE,
+									START_X + (j + 1) * (CELL_SIZE / 2), START_Y + i * CELL_SIZE, START_X + j * CELL_SIZE, START_Y + (i + 1) * (CELL_SIZE / 2));
+								DeleteObject(hBrush);
+							}
+							else if((closed_board[i][j] - 3) % 4 == 1) {
+								HBRUSH hBrush = CreateSolidBrush(pie_color[(closed_board[i][j] - 3) / 4]);
+								Pie(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE,
+									START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * (CELL_SIZE / 2), START_X + (j + 1) * (CELL_SIZE / 2), START_Y + i * CELL_SIZE);
+								DeleteObject(hBrush);
+							}
+							else if ((closed_board[i][j] - 3) % 4 == 2) {
+								HBRUSH hBrush = CreateSolidBrush(pie_color[(closed_board[i][j] - 3) / 4]);
+								Pie(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE,
+									START_X + (j + 1) * (CELL_SIZE / 2), START_Y + (i + 1) * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * (CELL_SIZE / 2));
+								DeleteObject(hBrush);
+							}
+							else if ((closed_board[i][j] - 3) % 4 == 3) {
+								HBRUSH hBrush = CreateSolidBrush(pie_color[(closed_board[i][j] - 3) / 4]);
+								Pie(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE,
+									START_X + j * CELL_SIZE, START_Y + (i + 1) * (CELL_SIZE / 2), START_X + (j + 1) * (CELL_SIZE / 2), START_Y + (i + 1) * CELL_SIZE);
+								DeleteObject(hBrush);
+							}*/
+						}
+
+					}
+				}
+			}
+
+			if (mode == 0 && isDragging) {
+				HPEN hBluePen = CreatePen(PS_SOLID, 2, RGB(0, 0, 255));
+				HPEN oldPen = (HPEN)SelectObject(memDC, hBluePen);
+				HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, GetStockObject(NULL_BRUSH));
+
+				Rectangle(memDC, startPT.x, startPT.y, endPT.x, endPT.y);
+
+				SelectObject(memDC, oldBrush);
+				SelectObject(memDC, oldPen);
+				DeleteObject(hBluePen);
+			}
+
+			if (show_score) {
 				SetBkMode(memDC, TRANSPARENT);
 				SetTextColor(memDC, RGB(0, 0, 0));
 				SetTextAlign(memDC, TA_TOP);
 				_stprintf_s(str, L"Score : %d", score);
-				TextOut(memDC, 30, 700, str, _tcslen(str));
+				TextOut(memDC, START_X, START_Y + board_hei * CELL_SIZE + 20, str, _tcslen(str));
+			}
+
+			if (IsHint) {
+				for (int i = 0; i < board_len; ++i) {
+					for (int j = 0; j < board_hei; ++j) {
+						Rectangle(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE);
+
+						int x1 = START_X + j * CELL_SIZE;
+						int y1 = START_Y + i * CELL_SIZE;
+						int x2 = x1 + CELL_SIZE;
+						int y2 = y1 + CELL_SIZE;
+						int midX = x1 + CELL_SIZE / 2;
+						int midY = y1 + CELL_SIZE / 2;
+						if (closed_board[i][j] == 0) {
+							HBRUSH hBrush = CreateSolidBrush(RGB(230, 230, 230));
+							HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+							Rectangle(memDC, START_X + j * CELL_SIZE, START_Y + i * CELL_SIZE, START_X + (j + 1) * CELL_SIZE, START_Y + (i + 1) * CELL_SIZE);
+							SelectObject(memDC, oldBrush);
+							DeleteObject(hBrush);
+						}
+						else if (closed_board[i][j] == 1) {
+							SetTextColor(memDC, RGB(255, 0, 0));
+							SetBkMode(memDC, TRANSPARENT);
+
+							HFONT hFont = CreateFont(CELL_SIZE * 0.75, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+								DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+								DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
+							HFONT oldFont = (HFONT)SelectObject(memDC, hFont);
+
+							UINT oldAlign = SetTextAlign(memDC, TA_CENTER | TA_BASELINE);
+
+							TextOut(memDC, midX, midY + (int)(CELL_SIZE * 0.25), L"B", 1);
+
+							SetTextAlign(memDC, oldAlign);
+							SelectObject(memDC, oldFont);
+							DeleteObject(hFont);
+						}
+						else if (closed_board[i][j] == 2) {
+							HBRUSH hItemBrush = CreateSolidBrush(RGB(255, 255, 0));
+							HBRUSH oldItemBrush = (HBRUSH)SelectObject(memDC, hItemBrush);
+
+							POINT pts[4] = { { midX, y1 }, { x2, midY }, { midX, y2 }, { x1, midY } };
+
+							Polygon(memDC, pts, 4);
+
+							SelectObject(memDC, oldItemBrush);
+							DeleteObject(hItemBrush);
+						}
+						else if (closed_board[i][j] > 2) {
+							int val = closed_board[i][j] - 3;
+							int remainder = val % 4;
+							int colorIdx = val / 4;
+
+							HBRUSH hBrush = CreateSolidBrush(pie_color[colorIdx]);
+							HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+
+							if (remainder == 0) Pie(memDC, x1, y1, x2, y2, midX, y1, x1, midY);
+							else if (remainder == 1) Pie(memDC, x1, y1, x2, y2, x2, midY, midX, y1);
+							else if (remainder == 2) Pie(memDC, x1, y1, x2, y2, midX, y2, x2, midY);
+							else if (remainder == 3) Pie(memDC, x1, y1, x2, y2, x1, midY, midX, y2);
+
+							SelectObject(memDC, oldBrush);
+							DeleteObject(hBrush);
+						}
+					}
+				}
 			}
 
 			// 완성된 백버퍼를 실제 화면으로 한 번에 복사
@@ -153,15 +416,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_MENU_GAMEEND:
-			
+			if (!game_end)
+				game_end = true;
 
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_MENU_HINT:
+			IsHint = true;
+			SetTimer(hWnd, 0, 1000, NULL);
 			
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_MENU_SCORE:
+			show_score = !show_score;
 			
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
@@ -169,43 +436,77 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_ERASEBKGND:
 		return 1;
+
 	case WM_LBUTTONDOWN:
-		if (light_mode != 2) {
-			light_mode = 2;
-			traffic_lights[0].state = 0;
-			traffic_lights[1].state = 0;
-		}
-		set_man_target(man, traffic_lights, light_mode);
+		if (game_end) break;
 
-		InvalidateRect(hWnd, NULL, FALSE);
-		break;
-	case WM_RBUTTONDOWN:
-		if (light_mode == 2) {
-			light_mode = 0;
-			traffic_lights[0].remain_time = blue_time;
-			traffic_lights[0].state = 2;
-			traffic_lights[1].remain_time = red_time;
-			traffic_lights[1].state = 0;
-			ttime = light_time;
-		}
+		isDragging = true;
+		startPT.x = LOWORD(lParam);
+		startPT.y = HIWORD(lParam);
+		endPT = startPT;
 
-		InvalidateRect(hWnd, NULL, FALSE);
+		if (mode == 1) {
+			goto OPEN_CELL;
+		}
 		break;
+
+	case WM_MOUSEMOVE:
+		if (isDragging) {
+			endPT.x = LOWORD(lParam);
+			endPT.y = HIWORD(lParam);
+
+			if (mode == 1) {
+			OPEN_CELL:
+				int j = (endPT.x - START_X) / CELL_SIZE;
+				int i = (endPT.y - START_Y) / CELL_SIZE;
+				if (i >= 0 && i < board_hei && j >= 0 && j < board_len) {
+					if (opened_board[i][j] == 0) {
+						opened_board[i][j] = 1;
+						OpenCellEvent(hWnd, i, j, score);
+					}
+				}
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
+
+	case WM_LBUTTONUP:
+		if (isDragging) {
+			if (mode == 0) {
+				int left = min(startPT.x, endPT.x);
+				int top = min(startPT.y, endPT.y);
+				int right = max(startPT.x, endPT.x);
+				int bottom = max(startPT.y, endPT.y);
+
+				for (int i = 0; i < board_hei; i++) {
+					for (int j = 0; j < board_len; j++) {
+						int cellX1 = START_X + j * CELL_SIZE;
+						int cellY1 = START_Y + i * CELL_SIZE;
+						int cellX2 = cellX1 + CELL_SIZE;
+						int cellY2 = cellY1 + CELL_SIZE;
+
+						if (!(cellX2 < left || cellX1 > right || cellY2 < top || cellY1 > bottom)) {
+							if (opened_board[i][j] == 0) {
+								opened_board[i][j] = 1;
+								OpenCellEvent(hWnd, i, j, score);
+							}
+						}
+					}
+				}
+			}
+			isDragging = false;
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
+
 	case WM_TIMER:
 		GetClientRect(hWnd, &rt);
 
-		if (wParam >= 0 && wParam <= 7) {
-			car_move((int)wParam, cars, traffic_lights, rt, crossing);
-		}
-		else if (wParam == 8) {
-			light_timer(traffic_lights, ttime, light_mode);
-			if (traffic_lights[0].remain_time == blue_time - yellow_time || traffic_lights[1].remain_time == blue_time - yellow_time) {
-				if (man.isMoving == false)
-					set_man_target(man, traffic_lights, light_mode);
-			}
-		}
-		else if (wParam == 9) {
-			man_move(man, traffic_lights, crossing);
+		if (wParam == 0) {
+			KillTimer(hWnd, 0);
+
+			IsHint = false;
+			InvalidateRect(hWnd, NULL, FALSE);
 		}
 
 		InvalidateRect(hWnd, NULL, FALSE);
