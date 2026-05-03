@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 #include <math.h>
+#include "resource.h"
 
 #define LEN 800
 #define HEI 600
@@ -11,7 +12,7 @@
 #define BRICK_LINE 3
 #define BRICK_NUM 10
 #define START_X 100
-#define START_Y 20
+#define START_Y 30
 #define PADDLE_LEN 150
 #define PADDLE_HEI 15
 #define BALL_RADIUS 10
@@ -22,12 +23,12 @@ using namespace std;
 random_device rd;
 mt19937 g(rd());
 uniform_int_distribution<> uid_rgb{ 0, 255 };
-uniform_int_distribution<> uid_speed{ 10, 40 };
+uniform_int_distribution<> uid_speed{ 1, 5 };
 uniform_int_distribution<> uid_dir{ 0, 1 };
 
 struct Point2D { float x, y; };
 struct PADDLE { Point2D pos; int velocity; int dir; };
-struct BRICK { Point2D pos; int line; COLORREF color; bool IsFalling; int dir; };
+struct BRICK { Point2D pos; int line; COLORREF color; bool IsFalling; int dir; int color_change; };
 struct BALL { Point2D pos, moving_pos; };	// 현재 좌표(pos)와 x, y축으로 프레임당 얼마만큼 움직이는지(moving_pos) 저장
 
 HINSTANCE g_hInst;
@@ -43,6 +44,9 @@ float lastPaddleX = 0.0f;
 bool isPaddleDragging = false;
 bool isP = false;
 bool isS = false;
+bool isT = false;
+int pH = 0, pM = 0, pS = 0;
+int bricks_speed[BRICK_LINE];
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -61,7 +65,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	WndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	WndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
 	WndClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-	WndClass.lpszMenuName = NULL;
+	WndClass.lpszMenuName = MAKEINTRESOURCE(IDR_MENU2);
 	WndClass.lpszClassName = lpszClass;
 	WndClass.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 	RegisterClassEx(&WndClass);
@@ -79,6 +83,7 @@ void init_setting()
 {
 	// 벽돌 세팅
 	for (int i = 0; i < BRICK_LINE; ++i) {
+		bricks_speed[i] = uid_speed(g);
 		int dir = uid_dir(g);
 		for (int j = 0; j < BRICK_NUM; ++j) {
 			bricks[i][j].color = RGB(255, 255, 0);
@@ -87,6 +92,7 @@ void init_setting()
 			bricks[i][j].dir = dir;
 			bricks[i][j].pos.x = START_X + BRICK_LEN * j;
 			bricks[i][j].pos.y = START_Y + BRICK_HEI * i;
+			bricks[i][j].color_change = 0;
 		}
 	}
 
@@ -110,63 +116,117 @@ void init_setting()
 	isPaddleDragging = false;
 	isP = false;
 	isS = false;
+	isT = false;
+	pH = 0; pM = 0; pS = 0;
 }
 
 void CollisionToPaddle()
 {
 	int r = BALL_RADIUS;
-	RECT bRect = { ball.pos.x - r, ball.pos.y - r , ball.pos.x + r , ball.pos.y + r };
-	RECT pRect = { paddle.pos.x - PADDLE_LEN / 2, paddle.pos.y, paddle.pos.x + PADDLE_LEN / 2, paddle.pos.y + PADDLE_HEI };
+	// RECT 좌표 형변환 경고 해결
+	RECT bRect = { (int)(ball.pos.x - r), (int)(ball.pos.y - r) , (int)(ball.pos.x + r) , (int)(ball.pos.y + r) };
+	RECT pRect = { (int)(paddle.pos.x - PADDLE_LEN / 2), (int)paddle.pos.y, (int)(paddle.pos.x + PADDLE_LEN / 2), (int)(paddle.pos.y + PADDLE_HEI) };
 	RECT temp;
+
 	if (IntersectRect(&temp, &bRect, &pRect)) {
 		if (ball.moving_pos.y > 0) {
-			// --- [1] 반사각 결정 로직 ---
-			// 패들의 중심에서 공이 얼마나 떨어져 있는지 비율 계산 (-1.0 ~ 1.0)
+			// 충돌 직전의 전체 속력(크기) 계산
+			float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+
+			// 패들 중심에서의 거리 비율 (-1.0 ~ 1.0) 계산
 			float hitPoint = (ball.pos.x - paddle.pos.x) / (PADDLE_LEN / 2.0f);
 
-			// hitPoint에 따라 X축 속도를 결정 (가장자리일수록 X값이 커져서 옆으로 누움)
-			// 최대 X속도를 10.0f 정도로 잡았을 때:
+			// 새로운 방향 계산 (일단 X축 방향을 비율대로 설정)
 			ball.moving_pos.x = hitPoint * 10.0f;
 
-			// Y축은 항상 위로 튕겨나가되, X가 커질수록(옆으로 누울수록) 작아져야 자연스러움
-			// 피타고라스 정리에 의해 일정한 전체 속력을 유지하도록 설정하거나, 
-			// 간단하게 고정값(단, 위쪽 방향이므로 음수)을 줍니다.
-			ball.moving_pos.y = -sqrt(max(0.0f, 100.0f - pow(ball.moving_pos.x, 2))); // 전체 속력 10 유지
+			// 피타고라스 정리에 의해 Y축 크기 결정 (위쪽이므로 음수)
+			float tempY = -sqrt(max(0.0f, 100.0f - pow(ball.moving_pos.x, 2)));
 
-			// --- [2] 패들 속도에 따른 가속/감속 로직 ---
-			// 패들이 느리면(예: 5 미만) 감속, 빠르면(예: 15 이상) 가속
+			float minAbsY = MIN_SPEED;
+			if (abs(tempY) < minAbsY) {
+				tempY = -minAbsY;
+				// Y를 키웠으므로, 전체 비율을 맞추기 위해 X를 줄여야 함
+				float signX = (ball.moving_pos.x >= 0) ? 1.0f : -1.0f;
+				ball.moving_pos.x = signX * sqrt(max(0.0f, 100.0f - pow(tempY, 2)));
+			}
+			ball.moving_pos.y = tempY;
+
+			// 방향 벡터 정규화 (크기를 1로 만듦)
+			float dirLen = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+			ball.moving_pos.x /= dirLen;
+			ball.moving_pos.y /= dirLen;
+
+			// 패들 속도에 따른 가속/감속
 			float speedFactor = 1.0f;
 			if (paddle.velocity < 10) {
-				speedFactor = 0.8f;  // 살짝 갖다 대면 속도 감소
+				speedFactor = 0.9f;  // 감속 비율
 			}
 			else if (paddle.velocity > 25) {
-				speedFactor = 1.3f;  // 강하게 휘두르면 속도 증가
+				speedFactor = 1.1f;  // 가속 비율
 			}
 
-			ball.moving_pos.x *= speedFactor;
-			ball.moving_pos.y *= speedFactor;
+			// 최종 속도 적용 (원래 속력 * 방향 벡터 * 가감속 비율)
+			float finalSpeedVal = currentSpeed * speedFactor;
 
-			// 위치 보정 (패들에 공이 박히는 현상 방지)
+			ball.moving_pos.x *= finalSpeedVal;
+			ball.moving_pos.y *= finalSpeedVal;
+
+			// 위치 보정
 			ball.pos.y = paddle.pos.y - r;
 		}
 	}
-	// 현재 전체 속력(크기) 계산
-	float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
 
-	// 최대/최소 속도 제한 적용
-	if (currentSpeed > MAX_SPEED) {
-		ball.moving_pos.x = (ball.moving_pos.x / currentSpeed) * MAX_SPEED;
-		ball.moving_pos.y = (ball.moving_pos.y / currentSpeed) * MAX_SPEED;
+	// 최종 절대 속도 제한 (MAX_SPEED, MIN_SPEED 준수)
+	float speed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+	if (speed > MAX_SPEED) {
+		ball.moving_pos.x = (ball.moving_pos.x / speed) * MAX_SPEED;
+		ball.moving_pos.y = (ball.moving_pos.y / speed) * MAX_SPEED;
 	}
-	else if (currentSpeed < MIN_SPEED) {
-		ball.moving_pos.x = (ball.moving_pos.x / currentSpeed) * MIN_SPEED;
-		ball.moving_pos.y = (ball.moving_pos.y / currentSpeed) * MIN_SPEED;
+	else if (speed < MIN_SPEED) {
+		// 속도가 너무 느려지는 것 방지
+		ball.moving_pos.x = (ball.moving_pos.x / speed) * MIN_SPEED;
+		ball.moving_pos.y = (ball.moving_pos.y / speed) * MIN_SPEED;
 	}
 }
 
 void CollisionToBrick()
 {
+	int r = BALL_RADIUS;
+	RECT bRect = { (int)(ball.pos.x - r), (int)(ball.pos.y - r), (int)(ball.pos.x + r), (int)(ball.pos.y + r) };
 
+	for (int i = 0; i < BRICK_LINE; ++i) {
+		for (int j = 0; j < BRICK_NUM; ++j) {
+			if (bricks[i][j].IsFalling) continue;
+
+			RECT brRect = { (int)bricks[i][j].pos.x, (int)bricks[i][j].pos.y, (int)(bricks[i][j].pos.x + BRICK_LEN), (int)(bricks[i][j].pos.y + BRICK_HEI) };
+
+			RECT temp;
+			if (IntersectRect(&temp, &bRect, &brRect)) {
+				COLORREF c = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
+				for (int k = 0; k < BRICK_NUM; ++k) {
+					if (!bricks[i][k].IsFalling) {
+						bricks[i][k].color = c;
+					}
+				}
+
+				bricks[i][j].IsFalling = true;
+				brokenBricks++;
+
+				// 겹친 영역의 가로가 세로보다 길면 위/아래 충돌, 짧으면 좌/우 충돌
+				int overlapWidth = temp.right - temp.left;
+				int overlapHeight = temp.bottom - temp.top;
+
+				if (overlapWidth > overlapHeight) {
+					ball.moving_pos.y *= -1;
+				}
+				else {
+					ball.moving_pos.x *= -1;
+				}
+
+				return;
+			}
+		}
+	}
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -175,55 +235,101 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	HDC hDC;
 	HPEN hPen, oldPen;
 	HBRUSH hBrush, oldBrush;
-	TCHAR str[50];
+	static TCHAR str[50];
+	static TCHAR str1[50];
+	static TCHAR str2[50];
+	static TCHAR str3[50];
+	static TCHAR str4[50];
 	static RECT rt;
 	static int mx, my;
+	SYSTEMTIME curTime;
 
 	switch (uMsg) {
 	case WM_CREATE:
 		init_setting();
-		SetTimer(hWnd, 0, 10, NULL);
+		SetTimer(hWnd, 0, 10, NULL);	// 패들 & 공
+		SetTimer(hWnd, 1, 1000, NULL);	// 시계	
 		break;
 	case WM_KEYDOWN:
 		if (wParam == 'S') {
 			if (!isS) {
 				isS = true;
 				ball.moving_pos.x = 0;
-				ball.moving_pos.y = -7.0f;
+				ball.moving_pos.y = -5.0f;
+				GetLocalTime(&curTime);
+				wsprintf(str1, TEXT("Start time : %02d:%02d:%02d"), curTime.wHour, curTime.wMinute, curTime.wSecond);
+				SetTimer(hWnd, 2, 1000, NULL);
+				SetTimer(hWnd, 3, 10, NULL);	// 떨어지는 벽돌	
+				SetTimer(hWnd, 4, 10, NULL);	// 벽돌 좌우 움직임
 			}
 		}
 		else if (wParam == 'P') {
-			if (isP && isS)
+			if (isP) {
 				SetTimer(hWnd, 0, 10, NULL);
-			else if (!isP && isS)
+				SetTimer(hWnd, 3, 10, NULL); 
+				SetTimer(hWnd, 4, 10, NULL);
+			}
+			else if (!isP) {
 				KillTimer(hWnd, 0);
+				KillTimer(hWnd, 3);
+				KillTimer(hWnd, 4);
+			}
 			isP = !isP;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'T') {
-
+			isT = !isT;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_PLUS || wParam == VK_ADD) {
+			float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+			if (currentSpeed < MAX_SPEED) {
+				if (ball.moving_pos.x > 0)
+					ball.moving_pos.x *= 1.1f;
+				else
+					ball.moving_pos.x *= 1.1f;
 
+				if (ball.moving_pos.y > 0)
+					ball.moving_pos.y *= 1.1f;
+				else
+					ball.moving_pos.y *= 1.1f;
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT) {
+			float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+			if (currentSpeed > MIN_SPEED) {
+				if (ball.moving_pos.x > 0)
+					ball.moving_pos.x *= 0.9f;
+				else
+					ball.moving_pos.x *= 0.9f;
 
+				if (ball.moving_pos.y > 0)
+					ball.moving_pos.y *= 0.9f;
+				else
+					ball.moving_pos.y *= 0.9f;
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'R') {
 			KillTimer(hWnd, 0);
+			KillTimer(hWnd, 2);
+			KillTimer(hWnd, 3);
+			KillTimer(hWnd, 4);
 
 			isS = false;
 			isP = false;
 			init_setting();
 
-			SetTimer(hWnd, 0, 10, NULL);
+			SetTimer(hWnd, 0, 10, NULL);;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'Q' || wParam == VK_ESCAPE) {
 			KillTimer(hWnd, 0);
+			KillTimer(hWnd, 1);
+			KillTimer(hWnd, 2);
+			KillTimer(hWnd, 3);
+			KillTimer(hWnd, 4);
 			PostQuitMessage(0);
 		}
 		break;
@@ -250,19 +356,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// 배경 지우기 (더블 버퍼링의 핵심: 하얀색으로 백버퍼를 채움)
 			FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
 
+			if (isT) {
+				SetBkMode(memDC, TRANSPARENT);
+				TextOut(memDC, 50, HEI - 120, str, lstrlen(str));
+				TextOut(memDC, 50, HEI - 100, str2, lstrlen(str2));
+				TextOut(memDC, 50, HEI - 80, str1, lstrlen(str1));
+			}
+
 			// --- 1. 벽돌 그리기 ---
 			for (int i = 0; i < BRICK_LINE; ++i) {
 				for (int j = 0; j < BRICK_NUM; ++j) {
 					// 파괴되지 않은 벽돌만 그림 (추후 CollisionToBrick에서 IsFalling 등을 활용할 수 있음)
-					if (!bricks[i][j].IsFalling) {
-						hBrush = CreateSolidBrush(bricks[i][j].color);
-						oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
+					hBrush = CreateSolidBrush(bricks[i][j].color);
+					oldBrush = (HBRUSH)SelectObject(memDC, hBrush);
 
-						Rectangle(memDC, (int)bricks[i][j].pos.x, (int)bricks[i][j].pos.y, (int)bricks[i][j].pos.x + BRICK_LEN, (int)bricks[i][j].pos.y + BRICK_HEI);
+					Rectangle(memDC, (int)bricks[i][j].pos.x, (int)bricks[i][j].pos.y, (int)bricks[i][j].pos.x + BRICK_LEN, (int)bricks[i][j].pos.y + BRICK_HEI);
 
-						SelectObject(memDC, oldBrush);
-						DeleteObject(hBrush);
-					}
+					SelectObject(memDC, oldBrush);
+					DeleteObject(hBrush);
 				}
 			}
 
@@ -286,6 +397,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			SelectObject(memDC, oldBrush);
 			DeleteObject(hBrush);
 
+			colorChangedBricks = 0;
+			for (int i = 0; i < BRICK_LINE; ++i) {
+				int n = 0;
+				bool changed = false;
+				for (int j = 0; j < BRICK_NUM; ++j) {
+					if (!bricks[i][j].IsFalling)
+						n++;
+					else
+						changed = true;
+				}
+				if (changed)
+					colorChangedBricks += n;
+			}
+			wsprintf(str3, TEXT("Broken Bricks : %d"), brokenBricks);
+			wsprintf(str4, TEXT("Color Changed Bricks : %d"), colorChangedBricks);
+			if (isP) {
+				TextOut(memDC, (LEN / 2) - 100, (HEI / 2), str3, lstrlen(str3));
+				TextOut(memDC, (LEN / 2) - 100, (HEI / 2) + 20, str4, lstrlen(str4));
+			}
+
 			// 완성된 백버퍼를 실제 화면으로 한 번에 복사
 			BitBlt(hDC, 0, 0, rt.right, rt.bottom, memDC, 0, 0, SRCCOPY);
 
@@ -297,8 +428,90 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
+		case ID_START:
+			if (!isS) {
+				isS = true;
+				ball.moving_pos.x = 0;
+				ball.moving_pos.y = -5.0f;
+				GetLocalTime(&curTime);
+				wsprintf(str1, TEXT("Start time : %02d:%02d:%02d"), curTime.wHour, curTime.wMinute, curTime.wSecond);
+				SetTimer(hWnd, 2, 1000, NULL);
+				SetTimer(hWnd, 3, 10, NULL);	// 떨어지는 벽돌	
+				SetTimer(hWnd, 4, 10, NULL);	// 벽돌 좌우 움직임
+			}
+			break;
+		case ID_PAUSE:
+			if (isP) {
+				SetTimer(hWnd, 0, 10, NULL);
+				SetTimer(hWnd, 3, 10, NULL);
+				SetTimer(hWnd, 4, 10, NULL);
+			}
+			else if (!isP) {
+				KillTimer(hWnd, 0);
+				KillTimer(hWnd, 3);
+				KillTimer(hWnd, 4);
+			}
+			isP = !isP;
+			InvalidateRect(hWnd, NULL, FALSE);
+			break;
+		case ID_TIME:
+			isT = !isT;
+			InvalidateRect(hWnd, NULL, FALSE);
+			break;
+		case ID_PLUS:
+		{
+			float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+			if (currentSpeed < MAX_SPEED) {
+				if (ball.moving_pos.x > 0)
+					ball.moving_pos.x *= 1.1f;
+				else
+					ball.moving_pos.x *= 1.1f;
 
+				if (ball.moving_pos.y > 0)
+					ball.moving_pos.y *= 1.1f;
+				else
+					ball.moving_pos.y *= 1.1f;
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+			break;
+		case ID_MINUS:
+		{
+			float currentSpeed = sqrt(pow(ball.moving_pos.x, 2) + pow(ball.moving_pos.y, 2));
+			if (currentSpeed > MIN_SPEED) {
+				if (ball.moving_pos.x > 0)
+					ball.moving_pos.x *= 0.9f;
+				else
+					ball.moving_pos.x *= 0.9f;
 
+				if (ball.moving_pos.y > 0)
+					ball.moving_pos.y *= 0.9f;
+				else
+					ball.moving_pos.y *= 0.9f;
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+			break;
+		case ID_RESET:
+			KillTimer(hWnd, 0);
+			KillTimer(hWnd, 2);
+			KillTimer(hWnd, 3);
+			KillTimer(hWnd, 4);
+
+			isS = false;
+			isP = false;
+			init_setting();
+
+			SetTimer(hWnd, 0, 10, NULL);;
+			InvalidateRect(hWnd, NULL, FALSE);
+			break;
+		case ID_QUIT:
+			KillTimer(hWnd, 0);
+			KillTimer(hWnd, 1);
+			KillTimer(hWnd, 2);
+			KillTimer(hWnd, 3);
+			KillTimer(hWnd, 4);
+			PostQuitMessage(0);
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		}
@@ -369,13 +582,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				// 바닥 충돌
 				if (ball.pos.y - BALL_RADIUS > rt.bottom) {
-					isS = false;
-					ball.moving_pos = { 0, 0 };
+					ball.moving_pos = { 0, -0.5f };
 					ball.pos.x = paddle.pos.x;
 					ball.pos.y = paddle.pos.y - BALL_RADIUS;
 				}
 
 				CollisionToPaddle();
+				CollisionToBrick();
 			}
 			else {
 				ball.pos.x = paddle.pos.x;
@@ -383,12 +596,93 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
+		else if (wParam == 1) {
+			GetLocalTime(&curTime);
+			wsprintf(str, TEXT("Current time : %02d:%02d:%02d"), curTime.wHour, curTime.wMinute, curTime.wSecond);
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == 2) {
+			pS++;
+			if (pS == 60) {
+				pS = 0;
+				pM++;
+				if (pM == 60) {
+					pM = 0;
+					pH++;
+				}
+			}
+			wsprintf(str2, TEXT("Playing time : %02d:%02d:%02d"), pH, pM, pS);
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == 3) {
+			for (int i = 0; i < BRICK_LINE; ++i) {
+				for (int j = 0; j < BRICK_NUM; ++j) {
+					if (bricks[i][j].IsFalling) {
+						bricks[i][j].pos.y++;
+						bricks[i][j].color_change++;
+					}
+					if (bricks[i][j].color_change == 100) {
+						bricks[i][j].color = RGB(uid_rgb(g), uid_rgb(g), uid_rgb(g));
+						bricks[i][j].color_change = 0;
+					}
+				}
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == 4) {
+			for (int i = 0; i < BRICK_LINE; ++i) {
+				int first = 0, last = BRICK_NUM - 1;
+				for (int j = 0; j < BRICK_NUM; ++j) {		// 맨 앞과 맨 뒤 찾기
+					if (!bricks[i][j].IsFalling) {
+						first = j;
+						break;
+					}
+				}
+				for (int j = BRICK_NUM - 1; j >= 0; --j) {		// 맨 앞과 맨 뒤 찾기
+					if (!bricks[i][j].IsFalling) {
+						last = j;
+						break;
+					}
+				}
+
+				if (bricks[i][first].pos.x <= rt.left) {
+					for (int j = 0; j < BRICK_NUM; ++j) {
+						if (!bricks[i][j].IsFalling) {
+							bricks[i][j].dir = 1;
+							bricks[i][j].pos.x += bricks_speed[i];
+						}
+					}
+				}
+				else if(bricks[i][last].pos.x + BRICK_LEN >= rt.right) {
+					for (int j = 0; j < BRICK_NUM; ++j) {
+						if (!bricks[i][j].IsFalling) {
+							bricks[i][j].dir = 0;
+							bricks[i][j].pos.x -= bricks_speed[i];
+						}
+					}
+				}
+				else {
+					for (int j = 0; j < BRICK_NUM; ++j) {
+						if (!bricks[i][j].IsFalling) {
+							if (bricks[i][first].dir == 0)
+								bricks[i][j].pos.x -= bricks_speed[i];
+							else
+								bricks[i][j].pos.x += bricks_speed[i];
+						}
+					}
+				}
+			}
+		}
 
 		InvalidateRect(hWnd, NULL, FALSE);
 		UpdateWindow(hWnd);
 		break;
 	case WM_DESTROY:
 		KillTimer(hWnd, 0);
+		KillTimer(hWnd, 1);
+		KillTimer(hWnd, 2);
+		KillTimer(hWnd, 3);
+		KillTimer(hWnd, 4);
 		PostQuitMessage(0);
 		break;
 	}
