@@ -23,6 +23,10 @@ LPCTSTR lpszWindowName = L"windows program 2";
 
 bool IsA = false;
 int bmW, bmH;
+int pictureDivision = 1;
+int selected = 0;
+vector<RECT> divRects;
+bool IsR = false;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -55,7 +59,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	return Message.wParam;
 }
 
+void UpdateRects(int mode, int w, int h) {
+	divRects.clear();
+	int rows = 1;
+	int cols = 1;
 
+	if (mode == 6) {
+		rows = 2;
+		cols = 3;
+	}
+	else if (mode == 4) {
+		rows = 2;
+		cols = 2;
+	}
+	else if (mode == 2) {
+		rows = 1;
+		cols = 2;
+	}
+	else {
+		rows = 1;
+		cols = 1;
+	}
+
+	int cellW = w / cols;
+	int cellH = h / rows;
+
+	for (int r = 0; r < rows; r++) {
+		for (int c = 0; c < cols; c++) {
+			RECT rct = { c * cellW, r * cellH, (c + 1) * cellW, (r + 1) * cellH };
+			divRects.push_back(rct);
+		}
+	}
+}
 
 
 
@@ -76,6 +111,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		GetObject(hBitmap, sizeof(BITMAP), &bmp);
 		bmW = bmp.bmWidth;
 		bmH = bmp.bmHeight;
+		UpdateRects(1, bmW, bmH);
 		break;
 	case WM_KEYDOWN:
 		GetClientRect(hWnd, &rt);
@@ -90,6 +126,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				bmH = rt.bottom;
 				IsA = !IsA;
 			}
+			UpdateRects(pictureDivision, bmW, bmH);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_PLUS || wParam == VK_ADD) {
@@ -97,6 +134,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				bmW += PLUS; bmH += PLUS;
 			if (bmW > rt.right) bmW = rt.right;
 			if (bmH > rt.bottom) bmH = rt.bottom;
+			UpdateRects(pictureDivision, bmW, bmH);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT) {
@@ -104,7 +142,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				bmW += MINUS; bmH += MINUS;
 			if (bmW < rt.right / 4) bmW = rt.right / 4;
 			if (bmH < rt.bottom / 4) bmH = rt.bottom / 4;
+			UpdateRects(pictureDivision, bmW, bmH);
 			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == '1' || wParam == '2' || wParam == '4' || wParam == '6') {
+			pictureDivision = wParam - '0';
+			selected = 0;
+			IsR = false;
+			if(wParam == '1')
+				UpdateRects(1, bmp.bmWidth, bmp.bmHeight);
+			else
+				UpdateRects(wParam - '0', rt.right, rt.bottom);
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == 'R') {
+			IsR = !IsR;
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == 'Q' || VK_ESCAPE) {
+			DeleteObject(hBitmap);
+			PostQuitMessage(0);
+			break;
 		}
 		break;
 	case WM_SIZE:
@@ -130,11 +188,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// 배경 지우기 (더블 버퍼링의 핵심: 하얀색으로 백버퍼를 채움)
 			FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
 			//------------------------------------------------------------------
-			HDC hMemDC;
-			hMemDC = CreateCompatibleDC(hDC);
+			HDC hMemDC = CreateCompatibleDC(hDC);
 			SelectObject(hMemDC, hBitmap);
 
-			StretchBlt(memDC, 0, 0, bmW, bmH, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+			for (int i = 0; i < divRects.size(); i++) {
+				int curW = divRects[i].right - divRects[i].left;
+				int curH = divRects[i].bottom - divRects[i].top;
+			
+				if ((selected == i + 1) && IsR)
+					StretchBlt(memDC, divRects[i].left, divRects[i].top, curW, curH, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, NOTSRCCOPY);
+				else
+					StretchBlt(memDC, divRects[i].left, divRects[i].top, curW, curH, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+
+				if (selected == i + 1) {
+					HBRUSH hOldBrush = (HBRUSH)SelectObject(memDC, GetStockObject(NULL_BRUSH));
+					HPEN hRedPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+					HPEN hOldPen = (HPEN)SelectObject(memDC, hRedPen);
+
+					Rectangle(memDC, divRects[i].left, divRects[i].top, divRects[i].right, divRects[i].bottom);
+
+					SelectObject(memDC, hOldBrush);
+					SelectObject(memDC, hOldPen);
+					DeleteObject(hRedPen);
+				}
+			}
 
 			DeleteDC(hMemDC);
 			//------------------------------------------------------------------
@@ -153,19 +230,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_LBUTTONDOWN:
 	{
-		int mx = LOWORD(lParam);
-		int my = HIWORD(lParam);
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		POINT pt = { mx, my };
+		IsR = false;
 
-		
+		selected = 0;
+		for (int i = 0; i < divRects.size(); i++) {
+			if (PtInRect(&divRects[i], pt)) {
+				selected = i + 1;
+				break;
+			}
+		}
+		InvalidateRect(hWnd, NULL, FALSE);
 	}
 	break;
-
-	case WM_MOUSEMOVE:
-		
-		break;
-	case WM_LBUTTONUP:
-		
-		break;
 	case WM_DESTROY:
 		DeleteObject(hBitmap);
 		PostQuitMessage(0);

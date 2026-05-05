@@ -30,9 +30,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\..\Desktop\윈도우 프로그래밍\실습 자료\cat_front.bmp">
-      <Filter>리소스 파일</Filter>
-    </Image>
     <Image Include="..\..\..\..\Desktop\윈도우 프로그래밍\실습 자료\study.bmp">
       <Filter>리소스 파일</Filter>
     </Image>

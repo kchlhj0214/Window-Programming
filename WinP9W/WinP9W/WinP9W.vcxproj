@@ -137,7 +137,6 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\..\Desktop\윈도우 프로그래밍\실습 자료\cat_front.bmp" />
     <Image Include="..\..\..\..\Desktop\윈도우 프로그래밍\실습 자료\study.bmp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
