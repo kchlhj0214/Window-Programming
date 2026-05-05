@@ -159,7 +159,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			IsR = !IsR;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
-		else if (wParam == 'Q' || VK_ESCAPE) {
+		else if (wParam == 'Q' || wParam == VK_ESCAPE) {
 			DeleteObject(hBitmap);
 			PostQuitMessage(0);
 			break;
