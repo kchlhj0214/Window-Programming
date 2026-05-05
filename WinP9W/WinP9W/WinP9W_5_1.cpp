@@ -151,8 +151,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			IsR = false;
 			if(wParam == '1')
 				UpdateRects(1, bmp.bmWidth, bmp.bmHeight);
-			else
+			else {
 				UpdateRects(wParam - '0', rt.right, rt.bottom);
+				bmW = rt.right;
+				bmH = rt.bottom;
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'R') {
