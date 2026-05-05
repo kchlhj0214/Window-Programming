@@ -23,7 +23,7 @@ using namespace std;
 random_device rd;
 mt19937 g(rd());
 uniform_int_distribution<> uid_rgb{ 0, 255 };
-uniform_int_distribution<> uid_speed{ 1, 5 };
+uniform_int_distribution<> uid_speed{ 1, 10 };
 uniform_int_distribution<> uid_dir{ 0, 1 };
 
 struct Point2D { float x, y; };
@@ -260,14 +260,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				wsprintf(str1, TEXT("Start time : %02d:%02d:%02d"), curTime.wHour, curTime.wMinute, curTime.wSecond);
 				SetTimer(hWnd, 2, 1000, NULL);
 				SetTimer(hWnd, 3, 10, NULL);	// 떨어지는 벽돌	
-				SetTimer(hWnd, 4, 10, NULL);	// 벽돌 좌우 움직임
+				SetTimer(hWnd, 4, 20, NULL);	// 벽돌 좌우 움직임
 			}
 		}
 		else if (wParam == 'P') {
 			if (isP) {
 				SetTimer(hWnd, 0, 10, NULL);
 				SetTimer(hWnd, 3, 10, NULL); 
-				SetTimer(hWnd, 4, 10, NULL);
+				SetTimer(hWnd, 4, 20, NULL);
 			}
 			else if (!isP) {
 				KillTimer(hWnd, 0);
@@ -437,14 +437,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				wsprintf(str1, TEXT("Start time : %02d:%02d:%02d"), curTime.wHour, curTime.wMinute, curTime.wSecond);
 				SetTimer(hWnd, 2, 1000, NULL);
 				SetTimer(hWnd, 3, 10, NULL);	// 떨어지는 벽돌	
-				SetTimer(hWnd, 4, 10, NULL);	// 벽돌 좌우 움직임
+				SetTimer(hWnd, 4, 20, NULL);	// 벽돌 좌우 움직임
 			}
 			break;
 		case ID_PAUSE:
 			if (isP) {
 				SetTimer(hWnd, 0, 10, NULL);
 				SetTimer(hWnd, 3, 10, NULL);
-				SetTimer(hWnd, 4, 10, NULL);
+				SetTimer(hWnd, 4, 20, NULL);
 			}
 			else if (!isP) {
 				KillTimer(hWnd, 0);
