@@ -51,9 +51,9 @@ END
 // Bitmap
 //
 
-IDB_BITMAP1             BITMAP                  "C:\\Users\\wlsdl\\Desktop\\윈도우 프로그래밍\\실습 자료\\study.bmp"
+IDB_BITMAP1             BITMAP                  "study.bmp"
 
-IDB_BITMAP2             BITMAP                  "C:\\Users\\wlsdl\\Desktop\\윈도우 프로그래밍\\실습 자료\\catcat.bmp"
+IDB_BITMAP2             BITMAP                  "catcat.bmp"
 
 
 /////////////////////////////////////////////////////////////////////////////
