@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 #include <math.h>
+#include <algorithm>
 #include "resource.h"
 
 #define LEN 1000
@@ -10,17 +11,19 @@
 #define PLUS 10
 #define MINUS -10
 #define BORAR_SIZE 5
+#define SPEED 10
 
 using namespace std;
 random_device rd;
 mt19937 g(rd());
 uniform_int_distribution<> uid_rgb{ 0, 255 };
 uniform_int_distribution<> uid_speed{ 1, 10 };
-uniform_int_distribution<> uid_pos1{ 0, 8 };
-uniform_int_distribution<> uid_pos2{ 0, 15 };
-uniform_int_distribution<> uid_pos3{ 0, 24 };
+uniform_int_distribution<> uid_pos3{ 0, 7 };
+uniform_int_distribution<> uid_pos4{ 0, 14 };
+uniform_int_distribution<> uid_pos5{ 0, 23 };
 
-struct RECTS { int boardPos; RECT pic; };
+struct RECTS { int boardPos; RECT pic; POINT target; bool isMoving;
+};
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
@@ -32,8 +35,9 @@ int pictureDivision = 1;
 int selected = 0;
 vector<RECTS> divRects;
 bool IsR = false;
-int board[BORAR_SIZE][BORAR_SIZE];
+int board[BORAR_SIZE][BORAR_SIZE] = {0};
 vector<POINT> pos;
+int emptyBoard;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -91,10 +95,88 @@ void UpdateRects(int mode, int w, int h) {
 }
 
 void ShuffleRects(vector<RECTS>& r, int mode) {
-	
+	vector<int> v;
+	for (int i = 0; i < mode * mode; ++i)
+		v.push_back(i);
+
+	shuffle(v.begin(), v.end(), g);
+	emptyBoard = v.back();
+	v.pop_back();
+
+	for (int i = 0; i < r.size(); ++i) {
+		if (i < v.size()) {
+			r[i].boardPos = v[i];
+		}
+	}
+
+	for (int i = 0; i < BORAR_SIZE; i++)
+		for (int j = 0; j < BORAR_SIZE; j++) 
+			board[i][j] = 0;
+
+	// 1차원으로 표현된 빈 보드를 2차원으로 전환
+	int row = emptyBoard / mode;
+	int col = emptyBoard % mode;
+
+	board[row][col] = 1;
 }
 
+void MoveRects(HWND hWnd, vector<RECTS>& r, int mode, int dirX, int dirY) {
+	// 1. 현재 빈 칸의 2차원 좌표 계산
+	int eRow = emptyBoard / mode;
+	int eCol = emptyBoard % mode;
 
+	// 2. 이동 대상 조각들 찾기
+	// 예: 위로 드래그(dirY=-1) -> 빈 칸 아래(row > eRow)에 있는 같은 열(col == eCol) 조각들
+	vector<int> targets;
+
+	int currRow = eRow - dirY; // 빈 칸 바로 다음 칸부터 조사
+	int currCol = eCol - dirX;
+
+	// 보드 범위 안에서 같은 라인에 있는 조각들을 전부 수집
+	while (currRow >= 0 && currRow < mode && currCol >= 0 && currCol < mode) {
+		int targetIdx = -1;
+		int targetBoardPos = currRow * mode + currCol;
+
+		// 현재 보드 위치(targetBoardPos)를 차지하고 있는 조각 찾기
+		for (int i = 0; i < r.size(); ++i) {
+			if (r[i].boardPos == targetBoardPos) {
+				targetIdx = i;
+				break;
+			}
+		}
+
+		if (targetIdx != -1) {
+			targets.push_back(targetIdx);
+		}
+
+		currRow -= dirY; // 같은 방향으로 한 칸 더 이동하며 조사
+		currCol -= dirX;
+	}
+
+	// 3. 수집된 조각들에게 이동 명령 하달
+	if (targets.empty()) return;
+
+	int cellW = bmW / mode;
+	int cellH = bmH / mode;
+
+	for (int idx : targets) {
+		r[idx].isMoving = true;
+		// 목표 좌표는 현재 위치에서 드래그 방향으로 한 칸 이동한 곳
+		r[idx].target.x = pos[r[idx].boardPos + (dirY * mode + dirX)].x;
+		r[idx].target.y = pos[r[idx].boardPos + (dirY * mode + dirX)].y;
+
+		// 논리적 위치(boardPos) 업데이트
+		r[idx].boardPos += (dirY * mode + dirX);
+	}
+
+	// 4. 빈 칸의 논리적 위치 업데이트 (가장 멀리 있던 조각의 원래 위치가 새로운 빈 칸이 됨)
+	// 하지만 이 방식은 연속 이동이므로, 빈 칸은 한 칸씩만 이동하는 게 아니라 
+	// 기차가 이동한 뒤 남은 끝자리가 됩니다.
+	emptyBoard = eRow * mode + eCol + (targets.size() * ((-dirY) * mode + (-dirX)));
+
+	// 5. 애니메이션 시작을 위한 타이머 실행
+	SetTimer(hWnd, 1, 10, NULL);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -249,6 +331,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd, NULL, FALSE);
 	}
 	break;
+	case WM_TIMER:
+		if(wParam == 1){
+			bool allArrived = true;
+			for (auto& rect : divRects) {
+				if (rect.isMoving) {
+					// 현재 좌표와 목표 좌표의 차이 계산
+					int dx = rect.target.x - rect.pic.left;
+					int dy = rect.target.y - rect.pic.top;
+
+					if (abs(dx) <= SPEED && abs(dy) <= SPEED) {
+						// 도착 처리
+						int w = rect.pic.right - rect.pic.left;
+						int h = rect.pic.bottom - rect.pic.top;
+						rect.pic.left = rect.target.x;
+						rect.pic.top = rect.target.y;
+						rect.pic.right = rect.pic.left + w;
+						rect.pic.bottom = rect.pic.top + h;
+						rect.isMoving = false;
+					}
+					else {
+						// 부드럽게 이동
+						OffsetRect(&rect.pic, (dx > 0 ? 1 : -1) * (dx == 0 ? 0 : SPEED),
+							(dy > 0 ? 1 : -1) * (dy == 0 ? 0 : SPEED));
+						allArrived = false;
+					}
+				}
+			}
+
+			InvalidateRect(hWnd, NULL, FALSE);
+			if (allArrived) KillTimer(hWnd, 1);
+		}
+		break;
 	case WM_DESTROY:
 		DeleteObject(hBitmap);
 		PostQuitMessage(0);
