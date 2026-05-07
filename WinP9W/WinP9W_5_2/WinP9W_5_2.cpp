@@ -29,8 +29,10 @@ LPCTSTR lpszClass = L"My Window Class";
 LPCTSTR lpszWindowName = L"windows program 2";
 
 bool IsS = false;
-bool IsF = false;
 bool IsM = false;
+bool IsHint = false;
+bool IsV = false;
+bool IsH = false;
 int bmW, bmH;
 int pictureDivision = 1;	// 행렬 3 4 5
 vector<RECTS> divRects;
@@ -42,6 +44,12 @@ int g_dirX = 0;	// 이동방향 1 0 -1
 int g_dirY = 0;
 int srtmx, srtmy, endmx, endmy;
 int cellW, cellH;
+bool IsHavePic = false;
+int tempEmptyBoard = -1;	// 마우스 우클릭으로 생긴 임시 빈 공간
+RECTS tempRect;
+bool IsVH = false;
+int dragIdx = -1; // 드래그 중인 조각의 인덱스
+POINT dragOffset; // 클릭한 시점의 마우스 좌표와 조각 좌상단의 차이
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -134,39 +142,43 @@ void ShuffleRects(vector<RECTS>& r, int mode) {
 void MoveRects(HWND hWnd, vector<RECTS>& r, int mode, int dirX, int dirY) {
 	if (IsM) return;
 
-	// 현재 빈 칸의 2차원 좌표 계산
-	int eRow = emptyBoard / mode;
-	int eCol = emptyBoard % mode;
+	vector<int> blanks;
+	blanks.push_back(emptyBoard);
+	if (tempEmptyBoard != -1) blanks.push_back(tempEmptyBoard);
 
-	int targetRow = eRow - dirY;
-	int targetCol = eCol - dirX;
+	bool movedAny = false;
 
-	if (targetRow < 0 || targetRow >= mode || targetCol < 0 || targetCol >= mode) {
-		return;
-	}
+	for (int blankPos : blanks) {
+		int eRow = blankPos / mode;
+		int eCol = blankPos % mode;
 
-	int targetBoardPos = targetRow * mode + targetCol;
-	int targetIdx = -1;
+		int targetRow = eRow - dirY;
+		int targetCol = eCol - dirX;
 
-	// 해당 위치에 있는 조각 찾기
-	for (int i = 0; i < r.size(); ++i) {
-		if (r[i].boardPos == targetBoardPos) {
-			targetIdx = i;
-			break;
+		if (targetRow < 0 || targetRow >= mode || targetCol < 0 || targetCol >= mode) continue;
+
+		int targetBoardPos = targetRow * mode + targetCol;
+
+		// 해당 위치에 있는 조각 찾기
+		for (int i = 0; i < r.size(); ++i) {
+			// 이미 다른 빈 공간에 의해 이동 중인 조각은 제외
+			if (r[i].boardPos == targetBoardPos && !r[i].isMoving) {
+				r[i].isMoving = true;
+				r[i].target.x = pos[blankPos].x;
+				r[i].target.y = pos[blankPos].y;
+
+				// 데이터 스왑
+				r[i].boardPos = blankPos;
+				if (blankPos == emptyBoard) emptyBoard = targetBoardPos;
+				else tempEmptyBoard = targetBoardPos;
+
+				movedAny = true;
+				break;
+			}
 		}
 	}
 
-	// 조각을 찾았다면 이동 처리
-	if (targetIdx != -1) {
-		r[targetIdx].isMoving = true;
-
-		// 목표 좌표는 현재 빈 칸의 화면 좌표
-		r[targetIdx].target.x = pos[emptyBoard].x;
-		r[targetIdx].target.y = pos[emptyBoard].y;
-
-		r[targetIdx].boardPos = emptyBoard;
-		emptyBoard = targetBoardPos;
-
+	if (movedAny) {
 		IsM = true;
 		SetTimer(hWnd, 1, 10, NULL);
 	}
@@ -218,6 +230,41 @@ void MoveRects(HWND hWnd, vector<RECTS>& r, int mode, int dirX, int dirY) {
 //	SetTimer(hWnd, 1, 10, NULL);
 //}
 
+void UpdateRectsVH(int mode, bool isVertical, int w, int h, HWND hWnd) {
+	RECT clientRt;
+	GetClientRect(hWnd, &clientRt);
+	pos.clear();
+	divRects.clear();
+
+	int rows;
+	int cols;
+	if (!isVertical) {
+		rows = mode;
+		cols = 1;
+	}
+	else {
+		rows = 1;
+		cols = mode;
+	}
+
+	cellW = clientRt.right / cols;
+	cellH = clientRt.bottom / rows;
+	int imgCellW = w / cols;
+	int imgCellH = h / rows;
+
+	for (int r = 0; r < rows; r++) {
+		for (int c = 0; c < cols; c++) {
+			pos.push_back({ c * cellW, r * cellH });
+			RECTS rct;
+			rct.boardPos = (int)divRects.size();
+			rct.curPos = { c * cellW, r * cellH, (c + 1) * cellW, (r + 1) * cellH };
+			rct.pic = { c * imgCellW, r * imgCellH, (c + 1) * imgCellW, (r + 1) * imgCellH };
+			rct.isMoving = false;
+			divRects.push_back(rct);
+		}
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
@@ -241,21 +288,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		GetClientRect(hWnd, &rt);
 		if (wParam == 'S') {
+			IsVH = false;
+			IsV = false;
+			IsH = false;
+			if (pictureDivision <= 1) {
+				MessageBox(hWnd, L"등분을 먼저 선택해주세요!", L"알림", MB_OK);
+				break;
+			}
+
+			if (curPic == 1) UpdateRects(pictureDivision, bmp1.bmWidth, bmp1.bmHeight, hWnd);
+			else if (curPic == 2) UpdateRects(pictureDivision, bmp2.bmWidth, bmp2.bmHeight, hWnd);
+
 			IsS = true;
+			IsM = false;
+			IsHint = false;
 			ShuffleRects(divRects, pictureDivision);
 
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'F') {
-			IsF = !IsF;
+			IsHint = !IsHint;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
-		else if (wParam == 'V') {
-			
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-		else if (wParam == 'H') {
-			
+		if (wParam == 'V' || wParam == 'H') {
+			IsVH = true;
+			IsS = false;
+			IsV = (wParam == 'V');
+			IsH = (wParam == 'H');
+			if (curPic == 1) 
+				UpdateRectsVH(pictureDivision, IsV, bmp1.bmWidth, bmp1.bmHeight, hWnd);
+			else 
+				UpdateRectsVH(pictureDivision, IsV, bmp2.bmWidth, bmp2.bmHeight, hWnd);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'Q' || wParam == VK_ESCAPE) {
@@ -288,32 +351,68 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// 배경 지우기 (더블 버퍼링의 핵심: 하얀색으로 백버퍼를 채움)
 			FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
 			//------------------------------------------------------------------
-			int sourceW;
-			int sourceH;
+			HDC hImgDC = CreateCompatibleDC(hDC);
+			if (curPic == 1) SelectObject(hImgDC, hBitmap1);
+			else if(curPic == 2) SelectObject(hImgDC, hBitmap2);
 
-			HDC hMemDC = CreateCompatibleDC(hDC);
-			if (curPic == 1) {
-				SelectObject(hMemDC, hBitmap1); 
-				sourceW = bmp1.bmWidth; 
-				sourceH = bmp1.bmHeight;
-			}
-			else if (curPic == 2) {
-				SelectObject(hMemDC, hBitmap2);
-				sourceW = bmp2.bmWidth; 
-				sourceH = bmp2.bmHeight;
-			}
-			if (pictureDivision == 1) {
-				StretchBlt(memDC, 0, 0, rt.right, rt.bottom,
-					hMemDC, 0, 0, sourceW, sourceH, SRCCOPY);
+			if (IsVH) {
+				HPEN hBlackPen = CreatePen(PS_SOLID, 2, RGB(0, 0, 0));
+				HPEN hOldPen = (HPEN)SelectObject(memDC, hBlackPen);
+				SelectObject(memDC, GetStockObject(NULL_BRUSH));
+
+				for (int i = 0; i < (int)divRects.size(); ++i) {
+					if (i == dragIdx) continue;
+
+					StretchBlt(memDC, divRects[i].curPos.left, divRects[i].curPos.top,
+						divRects[i].curPos.right - divRects[i].curPos.left,
+						divRects[i].curPos.bottom - divRects[i].curPos.top,
+						hImgDC, divRects[i].pic.left, divRects[i].pic.top,
+						(divRects[i].pic.right - divRects[i].pic.left),
+						(divRects[i].pic.bottom - divRects[i].pic.top), SRCCOPY);
+
+					Rectangle(memDC, divRects[i].curPos.left, divRects[i].curPos.top,
+						divRects[i].curPos.right, divRects[i].curPos.bottom);
+				}
+
+				if (dragIdx != -1) {
+					StretchBlt(memDC, divRects[dragIdx].curPos.left, divRects[dragIdx].curPos.top,
+						cellW, cellH, hImgDC, divRects[dragIdx].pic.left, divRects[dragIdx].pic.top,
+						(divRects[dragIdx].pic.right - divRects[dragIdx].pic.left),
+						(divRects[dragIdx].pic.bottom - divRects[dragIdx].pic.top), SRCCOPY);
+
+					HPEN hDragPen = CreatePen(PS_SOLID, 3, RGB(255, 0, 0));
+					SelectObject(memDC, hDragPen);
+					Rectangle(memDC, divRects[dragIdx].curPos.left, divRects[dragIdx].curPos.top,
+						divRects[dragIdx].curPos.right, divRects[dragIdx].curPos.bottom);
+					DeleteObject(hDragPen);
+				}
+				SelectObject(memDC, hOldPen);
+				DeleteObject(hBlackPen);
 			}
 			else {
-				for (int i = 0; i < divRects.size(); ++i) {
-					StretchBlt(memDC, divRects[i].curPos.left, divRects[i].curPos.top, cellW, cellH,
-						hMemDC, divRects[i].pic.left, divRects[i].pic.top, (divRects[i].pic.right - divRects[i].pic.left), (divRects[i].pic.bottom - divRects[i].pic.top), SRCCOPY);
+				// 일반 모드 힌트 출력
+				if (IsHint) {
+					int sourceW, sourceH;
+					if (curPic == 1) {
+						sourceW = bmp1.bmWidth;
+						sourceH = bmp1.bmHeight;
+					}
+					else {
+						sourceW = bmp2.bmWidth;
+						sourceH = bmp2.bmHeight;
+					}
+					StretchBlt(memDC, 0, 0, rt.right, rt.bottom, hImgDC, 0, 0, sourceW, sourceH, SRCCOPY);
+				}
+				else {
+					for (int i = 0; i < (int)divRects.size(); ++i) {
+						StretchBlt(memDC, divRects[i].curPos.left, divRects[i].curPos.top, cellW, cellH,
+							hImgDC, divRects[i].pic.left, divRects[i].pic.top,
+							(divRects[i].pic.right - divRects[i].pic.left),
+							(divRects[i].pic.bottom - divRects[i].pic.top), SRCCOPY);
+					}
 				}
 			}
-
-			DeleteDC(hMemDC);
+			DeleteDC(hImgDC);
 			//------------------------------------------------------------------
 			// 완성된 백버퍼를 실제 화면으로 한 번에 복사
 			BitBlt(hDC, 0, 0, rt.right, rt.bottom, memDC, 0, 0, SRCCOPY);
@@ -336,42 +435,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 		case ID_PICTURE_PICTURE2:
 			curPic = 2;
+			IsS = false;
+			IsM = false;
+			IsHint = false;
 			UpdateRects(1, bmp2.bmWidth, bmp2.bmHeight, hWnd);
 			pictureDivision = 1;
-			if(IsS)
-				ShuffleRects(divRects, pictureDivision);
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_PICTUREDIVISION_3:
+			IsVH = false;
+			IsV = false;
+			IsH = false;
 			pictureDivision = 3;
 			if(curPic == 1)
 				UpdateRects(pictureDivision, bmp1.bmWidth, bmp1.bmHeight, hWnd);
 			else if(curPic == 2)
 				UpdateRects(pictureDivision, bmp2.bmWidth, bmp2.bmHeight, hWnd);
+			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_PICTUREDIVISION_4:
+			IsVH = false;
+			IsV = false;
+			IsH = false;
 			pictureDivision = 4;
 			if (curPic == 1)
 				UpdateRects(pictureDivision, bmp1.bmWidth, bmp1.bmHeight, hWnd);
 			else if (curPic == 2)
 				UpdateRects(pictureDivision, bmp2.bmWidth, bmp2.bmHeight, hWnd);
+			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_PICTUREDIVISION_5:
 			pictureDivision = 5;
+			IsVH = false;
+			IsV = false;
+			IsH = false;
 			if (curPic == 1)
 				UpdateRects(pictureDivision, bmp1.bmWidth, bmp1.bmHeight, hWnd);
 			else if (curPic == 2)
 				UpdateRects(pictureDivision, bmp2.bmWidth, bmp2.bmHeight, hWnd);
+			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_GAME_GAMESTART:
+			IsVH = false;
+			IsV = false;
+			IsH = false;
+			if (pictureDivision <= 1) {
+				MessageBox(hWnd, L"등분을 먼저 선택해주세요!", L"알림", MB_OK);
+				break;
+			}
+
+			if (curPic == 1) UpdateRects(pictureDivision, bmp1.bmWidth, bmp1.bmHeight, hWnd);
+			else if(curPic == 2) UpdateRects(pictureDivision, bmp2.bmWidth, bmp2.bmHeight, hWnd);
+
 			IsS = true;
+			IsM = false;
+			IsHint = false;
 			ShuffleRects(divRects, pictureDivision);
 
 			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_GAME_SHOWPICTURE:
+			IsHint = !IsHint;
+
+			InvalidateRect(hWnd, NULL, FALSE);
 			break;
 		case ID_GAME_GAMEEND:
+			IsS = false;
+			IsM = true;
 			break;
 		}
 		break;
@@ -379,40 +509,198 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return 1;
 
 	case WM_LBUTTONDOWN:
-		if(!IsM){
-			mx = LOWORD(lParam);
-			my = HIWORD(lParam);
-
-			srtmx = mx; srtmy = my;
-
-			InvalidateRect(hWnd, NULL, FALSE);
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		if (IsVH) {
+			POINT pt = { mx, my };
+			for (int i = 0; i < (int)divRects.size(); ++i) {
+				if (PtInRect(&divRects[i].curPos, pt)) {
+					dragIdx = i;
+					dragOffset.x = mx - divRects[i].curPos.left;
+					dragOffset.y = my - divRects[i].curPos.top;
+					break;
+				}
+			}
+		}
+		else {
+			if (!IsM) {
+				srtmx = mx;
+				srtmy = my;
+			}
+		}
+		break;
+	case WM_MOUSEMOVE:
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		if (IsVH) {
+			if (dragIdx != -1) {
+				int w = divRects[dragIdx].curPos.right - divRects[dragIdx].curPos.left;
+				int h = divRects[dragIdx].curPos.bottom - divRects[dragIdx].curPos.top;
+				divRects[dragIdx].curPos.left = mx - dragOffset.x;
+				divRects[dragIdx].curPos.top = my - dragOffset.y;
+				divRects[dragIdx].curPos.right = divRects[dragIdx].curPos.left + w;
+				divRects[dragIdx].curPos.bottom = divRects[dragIdx].curPos.top + h;
+				InvalidateRect(hWnd, NULL, FALSE);
+			}
 		}
 		break;
 	case WM_LBUTTONUP:
-		if(!IsM){
-			mx = LOWORD(lParam);
-			my = HIWORD(lParam);
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		if (IsVH) {
+			if (dragIdx != -1) {
+				int minDist = 999999;
+				int targetSlot = -1;
+				for (int i = 0; i < (int)pos.size(); ++i) {
+					int centerX = pos[i].x + (cellW / 2);
+					int centerY = pos[i].y + (cellH / 2);
+					int d = (int)(pow(mx - centerX, 2) + pow(my - centerY, 2));
+					if (d < minDist) {
+						minDist = d;
+						targetSlot = i;
+					}
+				}
 
-			endmx = mx; endmy = my;
+				int targetIdx = -1;
+				for (int i = 0; i < (int)divRects.size(); ++i) {
+					if (i != dragIdx) {
+						if (divRects[i].boardPos == targetSlot) {
+							targetIdx = i;
+							break;
+						}
+					}
+				}
 
-			if (abs(endmx - srtmx) > abs(endmy - srtmy)) {
-				g_dirY = 0;
-				if ((endmx - srtmx) >= 0)
-					g_dirX = 1;
-				else
-					g_dirX = -1;
+				if (targetIdx != -1) {
+					int tempPos = divRects[dragIdx].boardPos;
+					divRects[dragIdx].boardPos = divRects[targetIdx].boardPos;
+					divRects[targetIdx].boardPos = tempPos;
+
+					divRects[targetIdx].curPos.left = pos[divRects[targetIdx].boardPos].x;
+					divRects[targetIdx].curPos.top = pos[divRects[targetIdx].boardPos].y;
+					divRects[targetIdx].curPos.right = divRects[targetIdx].curPos.left + cellW;
+					divRects[targetIdx].curPos.bottom = divRects[targetIdx].curPos.top + cellH;
+				}
+
+				divRects[dragIdx].curPos.left = pos[divRects[dragIdx].boardPos].x;
+				divRects[dragIdx].curPos.top = pos[divRects[dragIdx].boardPos].y;
+				divRects[dragIdx].curPos.right = divRects[dragIdx].curPos.left + cellW;
+				divRects[dragIdx].curPos.bottom = divRects[dragIdx].curPos.top + cellH;
+
+				dragIdx = -1;
+				InvalidateRect(hWnd, NULL, FALSE);
 			}
-			else {
-				g_dirX = 0;
-				if ((endmy - srtmy) >= 0)
-					g_dirY = 1;
-				else
-					g_dirY = -1;
+		}
+		else {
+			if (!IsM) {
+				int dx = abs(mx - srtmx);
+				int dy = abs(my - srtmy);
+				if (dx > 20 || dy > 20) {
+					// [수정] 방향 결정 (if-else 사용)
+					if (dx > dy) {
+						g_dirY = 0;
+						if (mx - srtmx > 0) g_dirX = 1;
+						else g_dirX = -1;
+					}
+					else {
+						g_dirX = 0;
+						if (my - srtmy > 0) g_dirY = 1;
+						else g_dirY = -1;
+					}
+					MoveRects(hWnd, divRects, pictureDivision, g_dirX, g_dirY);
+				}
 			}
-			MoveRects(hWnd, divRects, pictureDivision, g_dirX, g_dirY);
-			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
+	case WM_LBUTTONDBLCLK:
+	{
+		if (IsM) break;
+		if (IsVH) break;
+
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		POINT pt = { mx, my };
+
+		for (auto& rect : divRects) {
+			int clickedBoard = rect.boardPos;
+			if (PtInRect(&rect.curPos, pt)) {
+				rect.boardPos = emptyBoard;
+				rect.curPos.left = pos[emptyBoard].x;
+				rect.curPos.top = pos[emptyBoard].y;
+				rect.curPos.right = pos[emptyBoard].x + cellW;
+				rect.curPos.bottom = pos[emptyBoard].y + cellH;
+				emptyBoard = clickedBoard;
+				break;
+			}
+		}
+		InvalidateRect(hWnd, NULL, FALSE);
+		break;
+	}
+	case WM_RBUTTONDOWN:
+	{
+		if (IsVH) break;
+		if (pictureDivision <= 1) break;
+
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+		POINT pt = { mx, my };
+
+		if (!IsHavePic) {
+			int targetBoardPos = -1;
+			for (int i = 0; i < pos.size(); ++i) {
+				RECT cellRect = { pos[i].x, pos[i].y, pos[i].x + cellW, pos[i].y + cellH };
+				if (PtInRect(&cellRect, pt)) {
+					targetBoardPos = i;
+					break;
+				}
+			}
+			if (targetBoardPos == emptyBoard || targetBoardPos == tempEmptyBoard) {
+				MessageBox(hWnd, L"저장된 사진이 없습니다!", L"에러", MB_OK);
+			}
+			// 사진 조각 들어내기
+			for (auto it = divRects.begin(); it != divRects.end(); ++it) {
+				if (PtInRect(&it->curPos, pt)) {
+					tempRect = *it;
+					tempEmptyBoard = it->boardPos;
+					divRects.erase(it);
+					IsHavePic = true;
+					InvalidateRect(hWnd, NULL, FALSE);
+					return 0;
+				}
+			}
+		}
+		else {
+			// 들고 있는 조각 내려놓기
+			int targetBoardPos = -1;
+			for (int i = 0; i < pos.size(); ++i) {
+				RECT cellRect = { pos[i].x, pos[i].y, pos[i].x + cellW, pos[i].y + cellH };
+				if (PtInRect(&cellRect, pt)) {
+					targetBoardPos = i;
+					break;
+				}
+			}
+
+			if (targetBoardPos == emptyBoard || targetBoardPos == tempEmptyBoard) {
+				tempRect.boardPos = targetBoardPos;
+				tempRect.curPos = { pos[targetBoardPos].x, pos[targetBoardPos].y,
+									pos[targetBoardPos].x + cellW, pos[targetBoardPos].y + cellH };
+
+				divRects.push_back(tempRect);
+
+				if (targetBoardPos == emptyBoard) {	// 반대 경우엔 그냥 tempEmptyBoard만 초기화
+					emptyBoard = tempEmptyBoard;
+				}
+
+				tempEmptyBoard = -1;
+				IsHavePic = false;
+			}
+			else {
+				MessageBox(hWnd, L"빈 공간에만 조각을 놓을 수 있습니다!", L"에러", MB_OK);
+			}
+		}
+		InvalidateRect(hWnd, NULL, FALSE);
+		break;
+	}
 	case WM_TIMER:
 		if(wParam == 1){
 			bool allArrived = true;
