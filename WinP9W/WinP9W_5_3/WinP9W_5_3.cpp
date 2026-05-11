@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <random>
 #include <vector>
@@ -11,6 +11,7 @@
 #define GRIP_SIZE 10
 #define MAX_ZOOM 2.0f
 #define MIN_ZOOM 0.5f
+#define MOVE_DIS 20
 
 using namespace std;
 random_device rd;
@@ -21,7 +22,7 @@ uniform_int_distribution<> uid_pos3{ 0, 7 };
 uniform_int_distribution<> uid_pos4{ 0, 14 };
 uniform_int_distribution<> uid_pos5{ 0, 23 };
 
-
+struct CopiedImage { int picNum; RECT srcRect; RECT destRect; };
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
@@ -39,6 +40,10 @@ bool isA = false;
 int curPic = 1;
 RECT viewRect;
 float curZoom = 1.0f;
+bool isC = false;
+vector<CopiedImage> pImages;
+bool isF = false;
+CopiedImage f;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -157,12 +162,49 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'C') {
+			if (isRectExist) {
+				isC = true;
+				f.picNum = curPic;
+				f.srcRect = viewRect;
+
+				for (auto& img : pImages) {
+					img.picNum = f.picNum;
+					img.srcRect = f.srcRect;
+				}
+			}
+			else {
+				MessageBox(hWnd, L"돋보기를 먼저 생성해주세요!", L"오류", MB_OK);
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'P') {
+			if(isC){
+				if (pImages.size() < 5) {
+					CopiedImage NewP;
+					NewP.picNum = f.picNum;
+					NewP.srcRect = f.srcRect;
+
+					int w = (readingGlasses.right - readingGlasses.left) / 2;
+					int h = (readingGlasses.bottom - readingGlasses.top) / 2;
+
+					uniform_int_distribution<> posX{ 0, max(0, (int)rt.right - w) };
+					uniform_int_distribution<> posY{ 0, max(0, (int)rt.bottom - h) };
+
+					int rx = posX(g);
+					int ry = posY(g);
+					NewP.destRect = { rx, ry, rx + w, ry + h };
+
+					pImages.push_back(NewP);
+				}
+			}
+			else {
+				MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'F') {
+			if(isC) isF = !isF;
+			else MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'H') {
@@ -182,6 +224,57 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == 'R') {
 			isRectExist = false;
+			pImages.clear();
+			isC = false;
+			isF = false;
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == VK_UP) {
+			if (readingGlasses.top - MOVE_DIS > 0) {
+				readingGlasses.top -= MOVE_DIS;
+				readingGlasses.bottom -= MOVE_DIS;
+			}
+			else if ((readingGlasses.top - MOVE_DIS <= 0) && (readingGlasses.top > 0)) {
+				readingGlasses.bottom -= readingGlasses.top;
+				readingGlasses.top = 0;
+			}
+
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == VK_RIGHT) {
+			if (readingGlasses.right + MOVE_DIS <  rt.right) {
+				readingGlasses.right += MOVE_DIS;
+				readingGlasses.left += MOVE_DIS;
+			}
+			else if ((readingGlasses.right + MOVE_DIS >= rt.right) && (readingGlasses.right < rt.right)) {
+				readingGlasses.left += rt.right - readingGlasses.right;
+				readingGlasses.right = rt.right;
+			}
+
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == VK_DOWN) {
+			if (readingGlasses.bottom + MOVE_DIS < rt.bottom) {
+				readingGlasses.bottom += MOVE_DIS;
+				readingGlasses.top += MOVE_DIS;
+			}
+			else if ((readingGlasses.bottom + MOVE_DIS >= rt.bottom) && (readingGlasses.bottom < rt.bottom)) {
+				readingGlasses.top += rt.bottom - readingGlasses.bottom;
+				readingGlasses.bottom = rt.bottom;
+			}
+
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		else if (wParam == VK_LEFT) {
+			if (readingGlasses.left - MOVE_DIS > 0) {
+				readingGlasses.left -= MOVE_DIS;
+				readingGlasses.right -= MOVE_DIS;
+			}
+			else if ((readingGlasses.left - MOVE_DIS <= 0) && (readingGlasses.left > 0)) {
+				readingGlasses.right -= readingGlasses.left;
+				readingGlasses.left = 0;
+			}
+
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'Q' || wParam == VK_ESCAPE) {
@@ -227,6 +320,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				sourceH = bmp2.bmHeight;
 			}
 			StretchBlt(memDC, 0, 0, rt.right, rt.bottom, hImgDC, 0, 0, sourceW, sourceH, SRCCOPY);
+
+			HPEN bluePen = CreatePen(PS_SOLID, 2, RGB(0, 0, 255));
+			HPEN oldPen = (HPEN)SelectObject(memDC, bluePen);
+			HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, GetStockObject(NULL_BRUSH));
+
+			// F 토글 처리
+			if (isF && isC) {
+				if (f.picNum == 1) SelectObject(hImgDC, hBitmap1);
+				else if (f.picNum == 2) SelectObject(hImgDC, hBitmap2);
+				StretchBlt(memDC, 0, 0, rt.right, rt.bottom, hImgDC,
+					f.srcRect.left, f.srcRect.top,
+					f.srcRect.right - f.srcRect.left,
+					f.srcRect.bottom - f.srcRect.top, SRCCOPY);
+			}
+
+			// P 키로 생성된 이미지들 출력
+			for (const auto& img : pImages) {
+				SelectObject(hImgDC, (img.picNum == 1) ? hBitmap1 : hBitmap2);
+				StretchBlt(memDC, img.destRect.left, img.destRect.top,
+					img.destRect.right - img.destRect.left,
+					img.destRect.bottom - img.destRect.top,
+					hImgDC,
+					img.srcRect.left, img.srcRect.top,
+					img.srcRect.right - img.srcRect.left,
+					img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+
+				Rectangle(memDC, img.destRect.left, img.destRect.top, img.destRect.right, img.destRect.bottom);
+			}
+
+			SelectObject(memDC, oldPen);
+			SelectObject(memDC, oldBrush);
+			DeleteObject(bluePen);
 
 			if (isRectExist) {
 				UpdateViewRect(rt.right, rt.bottom, sourceW, sourceH);
@@ -275,25 +400,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			RECT rc = readingGlasses;
 			grabSide = 0;
 
-			// 1. 꼭짓점 판별 (비율 유지)
+			// 꼭짓점 판별
 			if (abs(mx - rc.left) < GRIP_SIZE && abs(my - rc.top) < GRIP_SIZE) grabSide = 5;      // 좌상
 			else if (abs(mx - rc.right) < GRIP_SIZE && abs(my - rc.top) < GRIP_SIZE) grabSide = 6; // 우상
 			else if (abs(mx - rc.left) < GRIP_SIZE && abs(my - rc.bottom) < GRIP_SIZE) grabSide = 7; // 좌하
 			else if (abs(mx - rc.right) < GRIP_SIZE && abs(my - rc.bottom) < GRIP_SIZE) grabSide = 8; // 우하
 
-			// 2. 테두리 판별 (단방향)
+			// 테두리 판별
 			else if (abs(my - rc.top) < GRIP_SIZE && mx > rc.left && mx < rc.right) grabSide = 1;    // 상
 			else if (abs(my - rc.bottom) < GRIP_SIZE && mx > rc.left && mx < rc.right) grabSide = 2; // 하
 			else if (abs(mx - rc.left) < GRIP_SIZE && my > rc.top && my < rc.bottom) grabSide = 3;   // 좌
 			else if (abs(mx - rc.right) < GRIP_SIZE && my > rc.top && my < rc.bottom) grabSide = 4;  // 우
 
-			// 3. 내부 판별 (이동)
+			// 내부 판별
 			else if (PtInRect(&rc, { mx, my })) grabSide = 9;
 
 			if (grabSide > 0) {
 				isMovingRect = true;
 				lastMousePos = { mx, my };
-				// 현재 비율 저장 (꼭짓점 드래그 시 사용)
+				// 현재 비율 저장
 				fixedAspect = (float)(rc.right - rc.left) / (rc.bottom - rc.top);
 				return 0;
 			}
