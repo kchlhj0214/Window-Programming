@@ -37,6 +37,7 @@ int g_dirX, g_dirY;
 vector<RECTS> g_tiles;
 int goal_score = 32;
 bool game_start = false;
+bool isMoving = false;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -72,6 +73,11 @@ void UpdateTileList();
 
 void init_setting()
 {
+	for (int y = 0; y < BOARD_HEI; y++) {
+		for (int x = 0; x < BOARD_LEN; x++) {
+			board[x][y] = 0;
+		}
+	}
 	for (int i = 0; i < 4; ++i) {
 		int x = uid_board_x(g);
 		int y = uid_board_y(g);
@@ -416,29 +422,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return 1;
 
 	case WM_LBUTTONDOWN:
-		mx = LOWORD(lParam);
-		my = HIWORD(lParam);
-		srtmx = mx;
-		srtmy = my;
+		if(!isMoving){
+			mx = LOWORD(lParam);
+			my = HIWORD(lParam);
+			srtmx = mx;
+			srtmy = my;
+		}
 		break;
 	case WM_LBUTTONUP:
 	{
-		mx = LOWORD(lParam);
-		my = HIWORD(lParam);
+		if(!isMoving){
+			mx = LOWORD(lParam);
+			my = HIWORD(lParam);
 
-		int dx = abs(mx - srtmx);
-		int dy = abs(my - srtmy);
-		if (dx > dy) {
-			g_dirY = 0;
-			if (mx - srtmx > 0) g_dirX = 1;
-			else g_dirX = -1;
+			int dx = abs(mx - srtmx);
+			int dy = abs(my - srtmy);
+			if (dx > dy) {
+				g_dirY = 0;
+				if (mx - srtmx > 0) g_dirX = 1;
+				else g_dirX = -1;
+			}
+			else {
+				g_dirX = 0;
+				if (my - srtmy > 0) g_dirY = 1;
+				else g_dirY = -1;
+			}
+			isMoving = true;
+			MoveRects(hWnd, g_dirX, g_dirY);
 		}
-		else {
-			g_dirX = 0;
-			if (my - srtmy > 0) g_dirY = 1;
-			else g_dirY = -1;
-		}
-		MoveRects(hWnd, g_dirX, g_dirY);
 	}
 		break;
 	case WM_TIMER:
@@ -481,6 +492,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				KillTimer(hWnd, 1);
 				AddTwo();
 				UpdateTileList();
+				isMoving = false;
 			}
 		}
 		break;

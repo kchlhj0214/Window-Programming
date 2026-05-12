@@ -13,6 +13,7 @@
 #define MIN_ZOOM 0.5f
 #define MOVE_DIS 20
 
+
 using namespace std;
 random_device rd;
 mt19937 g(rd());
@@ -30,6 +31,7 @@ LPCTSTR lpszWindowName = L"windows program 2";
 
 POINT startPT, endPT;
 RECT readingGlasses;
+RECT originalGlasses;
 bool isRectExist = false;
 bool isMakingRect = false;
 bool isMovingRect = false;
@@ -44,6 +46,14 @@ bool isC = false;
 vector<CopiedImage> pImages;
 bool isF = false;
 CopiedImage f;
+bool isH = false;
+bool isV = false;
+bool isM = false;
+bool isN = false;
+bool isI = false;
+int moveDirX = 2;
+int moveDirY = 2;
+int sizeDir = 2;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -208,18 +218,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'H') {
+			if (isC) isH = !isH;
+			else MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'V') {
+			if (isC) isV = !isV;
+			else MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'M') {
+			if (isRectExist) {
+				if (!isM) {
+					SetTimer(hWnd, 1, 10, NULL);
+					isM = true;
+				}
+				else {
+					KillTimer(hWnd, 1);
+					isM = false;
+				}
+			}
+			else {
+				MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'N') {
+			if (isRectExist) {
+				if (!isN) {
+					originalGlasses = readingGlasses;
+					SetTimer(hWnd, 2, 10, NULL);
+					isN = true;
+				}
+				else {
+					KillTimer(hWnd, 2);
+					readingGlasses = originalGlasses;
+					isN = false;
+				}
+			}
+			else {
+				MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
+			}
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'I') {
+			if(isRectExist) isI = !isI;
+			else MessageBox(hWnd, L"복사본을 먼저 생성해주세요!", L"오류", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		else if (wParam == 'R') {
@@ -338,13 +382,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// P 키로 생성된 이미지들 출력
 			for (const auto& img : pImages) {
 				SelectObject(hImgDC, (img.picNum == 1) ? hBitmap1 : hBitmap2);
-				StretchBlt(memDC, img.destRect.left, img.destRect.top,
-					img.destRect.right - img.destRect.left,
-					img.destRect.bottom - img.destRect.top,
-					hImgDC,
-					img.srcRect.left, img.srcRect.top,
-					img.srcRect.right - img.srcRect.left,
-					img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+				if (isH) {
+					StretchBlt(memDC, img.destRect.right, img.destRect.top,
+						img.destRect.left - img.destRect.right,
+						img.destRect.bottom - img.destRect.top,
+						hImgDC,
+						img.srcRect.left, img.srcRect.top,
+						img.srcRect.right - img.srcRect.left,
+						img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+				}
+				else if (isV) {
+					StretchBlt(memDC, img.destRect.left, img.destRect.bottom,
+						img.destRect.right - img.destRect.left,
+						img.destRect.top - img.destRect.bottom,
+						hImgDC,
+						img.srcRect.left, img.srcRect.top,
+						img.srcRect.right - img.srcRect.left,
+						img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+				}
+				else {
+					StretchBlt(memDC, img.destRect.left, img.destRect.top,
+						img.destRect.right - img.destRect.left,
+						img.destRect.bottom - img.destRect.top,
+						hImgDC,
+						img.srcRect.left, img.srcRect.top,
+						img.srcRect.right - img.srcRect.left,
+						img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+				}
+				if (isH && isV) {
+					StretchBlt(memDC, img.destRect.right, img.destRect.bottom,
+						img.destRect.left - img.destRect.right,
+						img.destRect.top - img.destRect.bottom,
+						hImgDC,
+						img.srcRect.left, img.srcRect.top,
+						img.srcRect.right - img.srcRect.left,
+						img.srcRect.bottom - img.srcRect.top, SRCCOPY);
+				}
 
 				Rectangle(memDC, img.destRect.left, img.destRect.top, img.destRect.right, img.destRect.bottom);
 			}
@@ -355,16 +428,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			if (isRectExist) {
 				UpdateViewRect(rt.right, rt.bottom, sourceW, sourceH);
-
-				StretchBlt(memDC,
-					readingGlasses.left, readingGlasses.top,
-					readingGlasses.right - readingGlasses.left,
-					readingGlasses.bottom - readingGlasses.top,
-					hImgDC,
-					viewRect.left, viewRect.top,
-					viewRect.right - viewRect.left,
-					viewRect.bottom - viewRect.top,
-					SRCCOPY);
+				if (isI) {
+					StretchBlt(memDC,
+						readingGlasses.left, readingGlasses.top,
+						readingGlasses.right - readingGlasses.left,
+						readingGlasses.bottom - readingGlasses.top,
+						hImgDC,
+						viewRect.left, viewRect.top,
+						viewRect.right - viewRect.left,
+						viewRect.bottom - viewRect.top,
+						NOTSRCCOPY);
+				}
+				else {
+					StretchBlt(memDC,
+						readingGlasses.left, readingGlasses.top,
+						readingGlasses.right - readingGlasses.left,
+						readingGlasses.bottom - readingGlasses.top,
+						hImgDC,
+						viewRect.left, viewRect.top,
+						viewRect.right - viewRect.left,
+						viewRect.bottom - viewRect.top,
+						SRCCOPY);
+				}
 
 				hPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0)); // 빨간색 펜
 				oldPen = (HPEN)SelectObject(memDC, hPen);
@@ -532,7 +617,109 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	
 	case WM_TIMER:
-		
+		GetClientRect(hWnd, &rt);
+		if (wParam == 1) {
+			OffsetRect(&readingGlasses, moveDirX, moveDirY);
+
+			// 좌우 벽 충돌 검사
+			if (readingGlasses.left <= 0 || readingGlasses.right >= rt.right) {
+				moveDirX *= -1;
+				// 벽 밖으로 나가지 않게 보정
+				if (readingGlasses.left < 0) OffsetRect(&readingGlasses, -readingGlasses.left, 0);
+				if (readingGlasses.right > rt.right) OffsetRect(&readingGlasses, rt.right - readingGlasses.right, 0);
+			}
+			// 상하 벽 충돌 검사
+			if (readingGlasses.top <= 0 || readingGlasses.bottom >= rt.bottom) {
+				moveDirY *= -1;
+				if (readingGlasses.top < 0) OffsetRect(&readingGlasses, 0, -readingGlasses.top);
+				if (readingGlasses.bottom > rt.bottom) OffsetRect(&readingGlasses, 0, rt.bottom - readingGlasses.bottom);
+			}
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		//else if (wParam == 2) {
+		//	int curW = readingGlasses.right - readingGlasses.left;
+		//	int curH = readingGlasses.bottom - readingGlasses.top;
+		//	int startW = originalGlasses.right - originalGlasses.left;
+		//	int startH = originalGlasses.bottom - originalGlasses.top;
+
+		//	readingGlasses.left -= sizeDir;
+		//	readingGlasses.right += sizeDir;
+		//	readingGlasses.top -= sizeDir;
+		//	readingGlasses.bottom += sizeDir;
+
+		//	// 한계치 및 화면 경계 검사
+		//	bool outOfBounds = false;
+
+		//	// 최대 1.5배
+		//	if (curW > startW * 1.5f || curH > startH * 1.5f ||
+		//		readingGlasses.left < 0 || readingGlasses.top < 0 ||
+		//		readingGlasses.right > rt.right || readingGlasses.bottom > rt.bottom) {
+		//		outOfBounds = true;
+		//	}
+		//	// 최소 0.5배
+		//	if (curW < startW * 0.5f || curH < startH * 0.5f || curW < GRIP_SIZE * 4) {
+		//		outOfBounds = true;
+		//	}
+
+		//	// 범위를 벗어났다면 방향을 바꾸고 한 스텝 되돌림
+		//	if (outOfBounds) {
+		//		sizeDir *= -1;
+		//		readingGlasses.left -= sizeDir;
+		//		readingGlasses.right += sizeDir;
+		//		readingGlasses.top -= sizeDir;
+		//		readingGlasses.bottom += sizeDir;
+		//	}
+
+		//	InvalidateRect(hWnd, NULL, FALSE);
+		//}
+		else if (wParam == 2) { // N: 크기 변경
+			GetClientRect(hWnd, &rt);
+
+			int curW = readingGlasses.right - readingGlasses.left;
+			int curH = readingGlasses.bottom - readingGlasses.top;
+			int startW = originalGlasses.right - originalGlasses.left;
+			int startH = originalGlasses.bottom - originalGlasses.top;
+
+			// 1. 다음 단계 크기를 미리 계산해봅니다.
+			RECT nextRect = readingGlasses;
+			nextRect.left -= sizeDir;
+			nextRect.right += sizeDir;
+			nextRect.top -= sizeDir;
+			nextRect.bottom += sizeDir;
+
+			int nextW = nextRect.right - nextRect.left;
+			int nextH = nextRect.bottom - nextRect.top;
+
+			// 2. 다음 단계가 한계치를 벗어나는지 체크합니다.
+			bool outOfBounds = false;
+
+			// 최대치(1.5배) 또는 화면 경계 체크
+			if (sizeDir > 0) { // 커지는 중일 때만 체크
+				if (nextW > startW * 1.5f || nextH > startH * 1.5f ||
+					nextRect.left < 0 || nextRect.top < 0 ||
+					nextRect.right > rt.right || nextRect.bottom > rt.bottom) {
+					outOfBounds = true;
+				}
+			}
+			// 최소치(0.5배) 체크
+			else if (sizeDir < 0) { // 작아지는 중일 때만 체크
+				if (nextW < startW * 0.5f || nextH < startH * 0.5f || nextW < GRIP_SIZE * 4) {
+					outOfBounds = true;
+				}
+			}
+
+			// 3. 범위를 벗어난다면 방향만 바꾸고 실제로 좌표를 옮기지는 않습니다.
+			if (outOfBounds) {
+				sizeDir *= -1;
+			}
+			else {
+				// 안전할 때만 실제 좌표 업데이트
+				readingGlasses = nextRect;
+			}
+
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
 	case WM_DESTROY:
 		DeleteObject(hBitmap1);
 		DeleteObject(hBitmap2);
