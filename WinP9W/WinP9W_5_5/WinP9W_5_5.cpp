@@ -9,36 +9,190 @@
 
 #define LEN 1000
 #define HEI 1000
-#define CELL_SIZE 100
-#define BOARD_LEN 6
-#define BOARD_HEI 6
-#define MAX_BLOCK 20
-#define SPEED 10
+#define CAT_SIZE 128
+#define MOUSE_SIZE 48
 
 using namespace std;
 random_device rd;
 mt19937 g(rd());
 uniform_int_distribution<> uid_rgb{ 0, 255 };
-uniform_int_distribution<> uid_board_x{ 0, BOARD_LEN - 1 };
-uniform_int_distribution<> uid_board_y{ 0, BOARD_HEI - 1 };
-uniform_int_distribution<> uid_pos4{ 0, 14 };
-uniform_int_distribution<> uid_pos5{ 0, 23 };
-
-struct RECTS { POINT pos; int num; int dir; RECT curPos; POINT target; bool isMoving; };
+uniform_int_distribution<> disX{ 50, LEN - 50 };
+uniform_int_distribution<> disY{ 50, HEI - 50 };
+uniform_int_distribution<> disTime{ 1000, 3000 };
 
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
 LPCTSTR lpszWindowName = L"windows program 2";
 
-int board[BOARD_LEN][BOARD_HEI] = { 0 };
-int srtmx, srtmy;
-int init_obstacles = 2;
-int g_dirX, g_dirY;
-vector<RECTS> g_tiles;
-int goal_score = 32;
-bool game_start = false;
-bool isMoving = false;
+enum class CatState { IDLE, CHASE, ATTACK, SPECIAL };
+
+struct GameObject {
+	float x, y;
+	float targetX, targetY;
+	int frame;
+	int motionRow; // 스프라이트 시트의 줄 번호
+	CatState state;
+	DWORD lastActionTime;
+	bool isLeft;
+	bool isLocked;
+};
+struct Food {
+	float x, y;
+	bool exists = false;
+};
+
+Food g_food;
+GameObject g_cat;
+GameObject g_mouse;
+bool g_isMouseDown = false;
+CImage img_map, img_cat, img_mouse;
+float g_catSpeedMult = 1.0f;
+
+void cat_reset(HWND hWnd);
+
+// 고양이 방향 및 애니메이션 설정
+void UpdateCatMotion(HWND hWnd)
+{
+	// 애니메이션 속도 조절
+	static int speedDivider = 0;
+	if (++speedDivider < 4) return;
+	speedDivider = 0;
+
+	if (g_food.exists) {
+		float dx = g_food.x - g_cat.x;
+		float dy = g_food.y - g_cat.y;
+		float dist = sqrt(dx * dx + dy * dy);
+
+		if (abs(dx) > 1.0f) g_cat.isLeft = (dx < 0);
+
+		if (dist < 10.0f) { // 먹이에 도착했을 때
+			g_food.exists = false;
+			g_cat.isLocked = false;
+
+			// 먹이를 먹으면 속도 증가
+			g_catSpeedMult += 0.2f;
+			if (g_catSpeedMult > 5.0f) g_catSpeedMult = 5.0f;
+
+			g_cat.state = CatState::IDLE;
+			g_cat.targetX = (float)disX(g);
+			g_cat.targetY = (float)disY(g);
+		}
+		else {
+			float chaseSpeed = 8.0f * g_catSpeedMult;
+			g_cat.x += (dx / dist) * chaseSpeed;
+			g_cat.y += (dy / dist) * chaseSpeed;
+			g_cat.frame = (g_cat.frame + 1) % 4;
+		}
+		return; // 먹이 먹는 중에는 다른 로직(SPECIAL 등) 실행 방지
+	}
+
+	// 특수 애니메이션(SPECIAL) 상태 처리
+	if (g_cat.state == CatState::SPECIAL) {
+		g_cat.frame++;
+
+		// 66번 줄 8프레임 (0~7)
+		if (g_cat.motionRow == 66) {
+			if (g_cat.frame >= 8) {
+				g_cat.motionRow = 68;
+				g_cat.frame = 0;
+			}
+		}
+		// 68번 줄 4프레임 (0~3)
+		else if (g_cat.motionRow == 68) {
+			if (g_cat.frame >= 4) {
+				g_cat.motionRow = 70;
+				g_cat.frame = 0;
+			}
+		}
+		// 70번 줄 10프레임 (0~9)
+		else if (g_cat.motionRow == 70) {
+			if (g_cat.frame >= 10) {
+				g_cat.state = CatState::IDLE;
+				g_cat.isLocked = false;
+				g_cat.frame = 0;
+				g_cat.motionRow = 5;
+				g_cat.targetX = (float)disX(g);
+				g_cat.targetY = (float)disY(g);
+				cat_reset(hWnd);
+			}
+		}
+		return; // ★ SPECIAL 중에는 아래의 일반 이동 로직을 절대 실행하지 않음
+	}
+
+	// 3. 일반 상태 로직 (ATTACK, CHASE, IDLE)
+	int maxFrame = 8; // 기본값
+
+	if (g_cat.state == CatState::ATTACK) {
+		g_cat.motionRow = 74;
+		maxFrame = 4;
+		if (GetTickCount() - g_cat.lastActionTime > 1500) {
+			g_cat.state = CatState::IDLE;
+			g_cat.targetX = (float)disX(g);
+			g_cat.targetY = (float)disY(g);
+		}
+	}
+	else if (g_isMouseDown) {
+		g_cat.state = CatState::CHASE;
+		g_cat.targetX = g_mouse.x;
+		g_cat.targetY = g_mouse.y;
+		g_cat.motionRow = 39;
+		maxFrame = 4;
+	}
+	else {
+		g_cat.state = CatState::IDLE;
+		g_cat.motionRow = 5;
+		maxFrame = 8;
+	}
+
+	// 이동 처리
+	float dx = g_cat.targetX - g_cat.x;
+	float dy = g_cat.targetY - g_cat.y;
+	float dist = sqrt(dx * dx + dy * dy);
+
+	if (abs(dx) > 1.0f) g_cat.isLeft = (dx < 0);
+
+	if (dist < 40.0f) {
+		if (g_cat.state == CatState::CHASE) {
+			g_cat.state = CatState::ATTACK;
+			g_cat.lastActionTime = GetTickCount();
+			g_cat.frame = 0;
+			g_isMouseDown = false;
+		}
+		else {
+			g_cat.targetX = (float)disX(g);
+			g_cat.targetY = (float)disY(g);
+		}
+	}
+	else if (g_cat.state != CatState::ATTACK) {
+		float baseSpeed = (g_cat.state == CatState::CHASE) ? 8.0f : 3.0f;
+		float finalSpeed = baseSpeed * g_catSpeedMult;
+
+		g_cat.x += (dx / dist) * finalSpeed;
+		g_cat.y += (dy / dist) * finalSpeed;
+	}
+
+	// 일반 애니메이션 프레임 순환
+	g_cat.frame = (g_cat.frame + 1) % maxFrame;
+}
+
+void cat_reset(HWND hWnd)
+{
+	g_cat.state = CatState::IDLE;
+	g_cat.motionRow = 5;
+	g_cat.frame = 0;
+	g_cat.isLeft = false;
+	g_cat.isLocked = false;
+
+	g_isMouseDown = false;
+	g_cat.lastActionTime = 0;
+
+	g_catSpeedMult = 1.0f;
+
+	g_food.exists = false;
+
+	InvalidateRect(hWnd, NULL, FALSE);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
@@ -71,7 +225,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	return Message.wParam;
 }
 
-
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
@@ -80,14 +233,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	HBRUSH hBrush, oldBrush;
 	static RECT rt;
 	static int mx, my;
-	static CImage img_background, img_cat, img_mouse;
-	static HBITMAP hBitmap2, hBitmap4, hBitmap8, hBitmap16, hBitmap32, hBitmap64;
 
 	switch (uMsg) {
 	case WM_CREATE:
-		img_background.Load(TEXT("map"));
-		img_cat.Load(TEXT("Cat_Grey_White"));
-		img_mouse.Load(TEXT("MouseIdle"));
+		img_map.Load(TEXT("map.png"));
+		img_cat.Load(TEXT("Cat_Grey_White.png"));
+		img_mouse.Load(TEXT("MouseIdle.png"));
+
+		g_cat = { 400, 400, 100, 100, 0, 0, CatState::IDLE, 0 };
+		SetTimer(hWnd, 1, 30, NULL);
 		break;
 	case WM_SIZE:
 		InvalidateRect(hWnd, NULL, FALSE);
@@ -100,6 +254,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		lpmmi->ptMinTrackSize.y = HEI;
 	}
 	return 0;
+	case WM_KEYDOWN:
+		if (wParam == VK_OEM_PLUS || wParam == VK_ADD) {
+			g_catSpeedMult += 0.2f;
+			if (g_catSpeedMult > 5.0f) g_catSpeedMult = 5.0f;
+		}
+		else if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT) {
+			g_catSpeedMult -= 0.2f;
+			if (g_catSpeedMult < 0.2f) g_catSpeedMult = 0.2f;
+		}
+		else if (wParam == 'R') {
+			cat_reset(hWnd);
+		}
+		else if (wParam == 'Q' || wParam == VK_ESCAPE) {
+			PostQuitMessage(0);
+			break;
+		}
 	case WM_PAINT:
 		hDC = BeginPaint(hWnd, &ps);
 		GetClientRect(hWnd, &rt);
@@ -110,46 +280,56 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			HBITMAP oldBit = (HBITMAP)SelectObject(memDC, hBit);
 
 			// 배경 지우기 (더블 버퍼링의 핵심: 하얀색으로 백버퍼를 채움)
-			FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
+			//FillRect(memDC, &ps.rcPaint, (HBRUSH)GetStockObject(WHITE_BRUSH));
+			if (!img_map.IsNull()) {
+				img_map.Draw(memDC, 0, 0, rt.right, rt.bottom);
+			}
 			//------------------------------------------------------------------
-			if (game_start) {
-				for (int i = 0; i < BOARD_LEN; i++) {
-					for (int j = 0; j < BOARD_HEI; j++) {
-						RECT cell = { i * CELL_SIZE, j * CELL_SIZE, (i + 1) * CELL_SIZE, (j + 1) * CELL_SIZE };
-						Rectangle(memDC, cell.left, cell.top, cell.right, cell.bottom);
+			if (g_isMouseDown && !img_mouse.IsNull()) {
+				int mWidth = img_mouse.GetWidth() / 2;
+				img_mouse.Draw(memDC, (int)g_mouse.x - MOUSE_SIZE / 2, (int)g_mouse.y - MOUSE_SIZE / 2,
+					MOUSE_SIZE, MOUSE_SIZE, g_mouse.frame * mWidth, 0, mWidth, img_mouse.GetHeight());
+			}
 
-						if (board[i][j] == 1) {
-							HBRUSH obsBrush = CreateSolidBrush(RGB(255, 0, 0));
-							FillRect(memDC, &cell, obsBrush);
-							DeleteObject(obsBrush);
-						}
-					}
+			if (!img_cat.IsNull()) {
+				// 행/프레임 계산
+				int localFrame = g_cat.frame;
+
+
+				int srcX = localFrame * 32;
+				int srcY = g_cat.motionRow * 32;
+
+				if (g_cat.isLeft) {
+					HDC tempDC = CreateCompatibleDC(memDC);
+					HBITMAP tempBit = CreateCompatibleBitmap(memDC, 32, 32);
+					HBITMAP oldTempBit = (HBITMAP)SelectObject(tempDC, tempBit);
+
+					HDC catDC = img_cat.GetDC();
+					StretchBlt(tempDC, 31, 0, -32, 32, catDC, srcX, srcY, 32, 32, SRCCOPY);
+					img_cat.ReleaseDC();
+
+					BLENDFUNCTION bf = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };		// 원본 애니메이션의 투명한 배경 정보 활용을 위한 코드
+					GdiAlphaBlend(memDC, (int)g_cat.x - CAT_SIZE / 2, (int)g_cat.y - CAT_SIZE / 2,
+						CAT_SIZE, CAT_SIZE, tempDC, 0, 0, 32, 32, bf);
+
+					SelectObject(tempDC, oldTempBit);
+					DeleteObject(tempBit);
+					DeleteDC(tempDC);
 				}
-
-				// 2. 비트맵 출력을 위한 메모리 DC 생성
-				HDC imgDC = CreateCompatibleDC(hDC);
-
-				for (auto& tile : g_tiles) {
-					if (tile.num <= 0) continue;
-
-					HBITMAP hTargetBmp = NULL;
-					int bmpW = 0, bmpH = 0;
-
-					if (tile.num == 2) { hTargetBmp = hBitmap2; bmpW = bmp2.bmWidth; bmpH = bmp2.bmHeight; }
-					else if (tile.num == 4) { hTargetBmp = hBitmap4; bmpW = bmp4.bmWidth; bmpH = bmp4.bmHeight; }
-					else if (tile.num == 8) { hTargetBmp = hBitmap8; bmpW = bmp8.bmWidth; bmpH = bmp8.bmHeight; }
-					else if (tile.num == 16) { hTargetBmp = hBitmap16; bmpW = bmp16.bmWidth; bmpH = bmp16.bmHeight; }
-					else if (tile.num == 32) { hTargetBmp = hBitmap32; bmpW = bmp32.bmWidth; bmpH = bmp32.bmHeight; }
-					else if (tile.num == 64) { hTargetBmp = hBitmap64; bmpW = bmp64.bmWidth; bmpH = bmp64.bmHeight; }
-
-					if (hTargetBmp != NULL) {
-						SelectObject(imgDC, hTargetBmp);
-						StretchBlt(memDC, tile.curPos.left, tile.curPos.top, tile.curPos.right - tile.curPos.left, tile.curPos.bottom - tile.curPos.top,
-							imgDC, 0, 0, bmpW, bmpH, SRCCOPY);
-					}
+				else {
+					// 오른쪽은 문제 없으므로 그대로 Draw
+					img_cat.Draw(memDC, (int)g_cat.x - CAT_SIZE / 2, (int)g_cat.y - CAT_SIZE / 2,
+						CAT_SIZE, CAT_SIZE, srcX, srcY, 32, 32);
 				}
+			}
 
-				DeleteDC(imgDC);
+			if (g_food.exists && !img_cat.IsNull()) {
+				// 58번 줄, 첫 번째 프레임 고정 (32x32 크기 가정)
+				int foodSrcX = 0;           // 첫 번째 프레임
+				int foodSrcY = 58 * 32;     // 58번 줄
+
+				img_cat.Draw(memDC, (int)g_food.x - CAT_SIZE / 2, (int)g_food.y - CAT_SIZE / 2,
+					CAT_SIZE, CAT_SIZE, foodSrcX, foodSrcY, 32, 32);
 			}
 			//------------------------------------------------------------------
 			// 완성된 백버퍼를 실제 화면으로 한 번에 복사
@@ -161,188 +341,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		EndPaint(hWnd, &ps);
 		break;
-	case WM_COMMAND:
-		switch (LOWORD(wParam)) {
-		case ID_GAME_GAMESTART:
-			game_start = true;
-			init_setting();
-
-			InvalidateRect(hWnd, NULL, FALSE);
-			break;
-		case ID_GAME_GAMEEND:
-			game_start = false;
-			MessageBox(hWnd, L"게임이 종료되었습니다", L"게임 종료", MB_OK);
-
-			InvalidateRect(hWnd, NULL, FALSE);
-			break;
-		case ID_GOALSCORE_32:
-			goal_score = 32;
-
-			InvalidateRect(hWnd, NULL, FALSE);
-			break;
-		case ID_GOALSCORE_64:
-			goal_score = 64;
-
-			InvalidateRect(hWnd, NULL, FALSE);
-			break;
-		case ID_OBSTACLES_2:
-		{
-			init_obstacles = 2;
-			int n = 0;
-			for (int i = 0; i < BOARD_LEN; ++i) {
-				for (int j = 0; j < BOARD_HEI; ++j) {
-					if (board[i][j] == 1) board[i][j] = 0;
-					if (board[i][j] == 0) n++;
-				}
-			}
-
-			for (int i = 0; i < init_obstacles; ++i) {
-				int x = uid_board_x(g);
-				int y = uid_board_y(g);
-				while (board[x][y] != 0) {
-					x = uid_board_x(g);
-					y = uid_board_y(g);
-				}
-				board[x][y] = 1;
-			}
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-		break;
-		case ID_OBSTACLES_3:
-		{
-			init_obstacles = 3;
-			int n = 0;
-			for (int i = 0; i < BOARD_LEN; ++i) {
-				for (int j = 0; j < BOARD_HEI; ++j) {
-					if (board[i][j] == 1) board[i][j] = 0;
-					if (board[i][j] == 0) n++;
-				}
-			}
-
-			for (int i = 0; i < init_obstacles; ++i) {
-				int x = uid_board_x(g);
-				int y = uid_board_y(g);
-				while (board[x][y] != 0) {
-					x = uid_board_x(g);
-					y = uid_board_y(g);
-				}
-				board[x][y] = 1;
-			}
-
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-		break;
-		case ID_OBSTACLES_4:
-		{
-			init_obstacles = 4;
-			int n = 0;
-			for (int i = 0; i < BOARD_LEN; ++i) {
-				for (int j = 0; j < BOARD_HEI; ++j) {
-					if (board[i][j] == 1) board[i][j] = 0;
-					if (board[i][j] == 0) n++;
-				}
-			}
-
-			for (int i = 0; i < init_obstacles; ++i) {
-				int x = uid_board_x(g);
-				int y = uid_board_y(g);
-				while (board[x][y] != 0) {
-					x = uid_board_x(g);
-					y = uid_board_y(g);
-				}
-				board[x][y] = 1;
-			}
-
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-		break;
-		}
-		break;
+	
 	case WM_ERASEBKGND:
 		return 1;
 
 	case WM_LBUTTONDOWN:
-		if (!isMoving) {
-			mx = LOWORD(lParam);
-			my = HIWORD(lParam);
-			srtmx = mx;
-			srtmy = my;
+	{
+		if (g_cat.isLocked) return 0; // 애니메이션 중이면 모든 입력 무시
+
+		mx = LOWORD(lParam);
+		my = HIWORD(lParam);
+
+		// 고양이 클릭 판정
+		float dx = mx - g_cat.x;
+		float dy = my - g_cat.y;
+		float dist = sqrt(dx * dx + dy * dy);
+
+		if (dist < CAT_SIZE / 2) {
+			// 고양이 클릭 시 특수 애니메이션 시작
+			g_cat.state = CatState::SPECIAL;
+			g_cat.motionRow = 66;
+			g_cat.frame = 0;
+			g_cat.isLocked = true;
+			g_isMouseDown = false;
+		}
+		else {
+			// 클릭 시 쥐
+			g_isMouseDown = true;
+			g_mouse.x = (float)mx;
+			g_mouse.y = (float)my;
+		}
+	}
+		break;
+	case WM_MOUSEMOVE:
+		if (g_isMouseDown) {
+			g_mouse.x = LOWORD(lParam);
+			g_mouse.y = HIWORD(lParam);
 		}
 		break;
 	case WM_LBUTTONUP:
-	{
-		if (!isMoving) {
-			mx = LOWORD(lParam);
-			my = HIWORD(lParam);
-
-			int dx = abs(mx - srtmx);
-			int dy = abs(my - srtmy);
-			if (dx > dy) {
-				g_dirY = 0;
-				if (mx - srtmx > 0) g_dirX = 1;
-				else g_dirX = -1;
-			}
-			else {
-				g_dirX = 0;
-				if (my - srtmy > 0) g_dirY = 1;
-				else g_dirY = -1;
-			}
-			isMoving = true;
-			MoveRects(hWnd, g_dirX, g_dirY);
-		}
-	}
-	break;
-	case WM_TIMER:
-		if (wParam == 1) {
-			bool allArrived = true;
-			for (auto& tile : g_tiles) {
-				if (tile.isMoving) {
-					allArrived = false;
-
-					// X축 이동
-					if (tile.curPos.left < tile.target.x) tile.curPos.left += SPEED;
-					else if (tile.curPos.left > tile.target.x) tile.curPos.left -= SPEED;
-
-					// Y축 이동
-					if (tile.curPos.top < tile.target.y) tile.curPos.top += SPEED;
-					else if (tile.curPos.top > tile.target.y) tile.curPos.top -= SPEED;
-
-					// 목적지 도달 확인 (오차 보정)
-					if (abs(tile.curPos.left - tile.target.x) <= SPEED) tile.curPos.left = tile.target.x;
-					if (abs(tile.curPos.top - tile.target.y) <= SPEED) tile.curPos.top = tile.target.y;
-
-					// Right, Bottom 갱신
-					tile.curPos.right = tile.curPos.left + CELL_SIZE;
-					tile.curPos.bottom = tile.curPos.top + CELL_SIZE;
-
-					if (tile.curPos.left == tile.target.x && tile.curPos.top == tile.target.y) {
-						tile.isMoving = false;
-					}
-					if (tile.curPos.left == tile.target.x && tile.curPos.top == tile.target.y) {
-						tile.isMoving = false;
-					}
-					else {
-						allArrived = false; // 하나라도 이동 중이면 false
-					}
-				}
-			}
-
-			InvalidateRect(hWnd, NULL, FALSE);
-			if (allArrived) {
-				KillTimer(hWnd, 1);
-				AddTwo();
-				UpdateTileList();
-				isMoving = false;
+		g_isMouseDown = false;
+		if (!g_cat.isLocked) {
+			if (g_cat.state != CatState::ATTACK) {
+				g_cat.state = CatState::IDLE;
 			}
 		}
 		break;
+	case WM_RBUTTONDOWN:
+		// 이미 먹이가 있거나 특수 애니메이션 중이면 무시
+		if (g_food.exists || g_cat.isLocked) return 0;
+
+		g_food.x = (float)LOWORD(lParam);
+		g_food.y = (float)HIWORD(lParam);
+		g_food.exists = true;
+
+		// 먹이를 먹기 전까지 다른 행동 차단
+		g_cat.isLocked = true;
+		g_cat.state = CatState::CHASE;
+		g_cat.targetX = g_food.x;
+		g_cat.targetY = g_food.y;
+		g_cat.motionRow = 39;
+		break;
+	case WM_TIMER:
+		UpdateCatMotion(hWnd);
+		g_mouse.frame = (g_mouse.frame + 1) % 2;
+		InvalidateRect(hWnd, NULL, FALSE);
+		break;
 	case WM_DESTROY:
-		DeleteObject(hBitmap2);
-		DeleteObject(hBitmap4);
-		DeleteObject(hBitmap8);
-		DeleteObject(hBitmap16);
-		DeleteObject(hBitmap32);
-		DeleteObject(hBitmap64);
 		PostQuitMessage(0);
 		break;
 	}
