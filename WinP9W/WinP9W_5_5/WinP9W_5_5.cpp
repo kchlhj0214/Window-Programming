@@ -403,9 +403,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		g_cat.motionRow = 39;
 		break;
 	case WM_TIMER:
-		UpdateCatMotion(hWnd);
-		g_mouse.frame = (g_mouse.frame + 1) % 2;
-		InvalidateRect(hWnd, NULL, FALSE);
+		if(wParam == 1) {
+			UpdateCatMotion(hWnd);
+			g_mouse.frame = (g_mouse.frame + 1) % 2;
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
