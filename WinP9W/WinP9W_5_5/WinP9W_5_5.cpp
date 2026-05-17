@@ -218,9 +218,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	hWnd = CreateWindow(lpszClass, lpszWindowName, WS_OVERLAPPEDWINDOW, 0, 0, LEN, HEI, NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
-	while (GetMessage(&Message, 0, 0, 0)) {
-		TranslateMessage(&Message);
-		DispatchMessage(&Message);
+	while (true)
+	{
+		if (PeekMessage(&Message, NULL, 0, 0, PM_REMOVE))
+		{
+			if (Message.message == WM_QUIT)
+				break;
+
+			TranslateMessage(&Message);
+			DispatchMessage(&Message);
+		}
+		else
+		{
+			UpdateCatMotion(hWnd);
+			g_mouse.frame = (g_mouse.frame + 1) % 2;
+
+			InvalidateRect(hWnd, NULL, FALSE);
+			UpdateWindow(hWnd);
+
+			Sleep(20);
+		}
 	}
 	return Message.wParam;
 }
@@ -241,7 +258,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		img_mouse.Load(TEXT("MouseIdle.png"));
 
 		g_cat = { 400, 400, 100, 100, 0, 0, CatState::IDLE, 0 };
-		SetTimer(hWnd, 1, 30, NULL);
 		break;
 	case WM_SIZE:
 		InvalidateRect(hWnd, NULL, FALSE);
@@ -341,7 +357,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		EndPaint(hWnd, &ps);
 		break;
-	
+
 	case WM_ERASEBKGND:
 		return 1;
 
@@ -372,7 +388,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			g_mouse.y = (float)my;
 		}
 	}
-		break;
+	break;
 	case WM_MOUSEMOVE:
 		if (g_isMouseDown) {
 			g_mouse.x = LOWORD(lParam);
@@ -401,13 +417,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		g_cat.targetX = g_food.x;
 		g_cat.targetY = g_food.y;
 		g_cat.motionRow = 39;
-		break;
-	case WM_TIMER:
-		if(wParam == 1) {
-			UpdateCatMotion(hWnd);
-			g_mouse.frame = (g_mouse.frame + 1) % 2;
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
