@@ -31,8 +31,8 @@ struct SpriteInfo {
 };
 
 struct Effect {
-    float x, y;          // 폭발이 발생한 월드 좌표
-    int animFrame;       // 현재 애니메이션 프레임 (0 ~ 8)
+    float x, y;
+    int animFrame;
     DWORD lastAnimTime;  // 프레임 전환 시간 체크용
 };
 
@@ -43,9 +43,8 @@ CImage img_mario, img_enemies, img_effect;
 int g_playerAnimFrame = 0;
 DWORD g_lastPlayerAnimTime = 0;
 
-// ★ 디버그 시각화 제어 플래그 변수 추가
-bool g_showDebug = true;       // true: 가이드선/히트박스 켬, false: 끔
-bool g_hKeyPressed = false;    // 키 중복 입력 방지용 플래그
+bool g_showDebug = true;
+bool g_hKeyPressed = false;
 
 struct Player {
     float x, y;
@@ -196,15 +195,14 @@ void InitGame() {
 void UpdateGame() {
     DWORD currentTime = GetTickCount();
 
-    // ★ [H] 키 토글 제어 시스템 추가 (디버그 라인 ON / OFF)
     if (GetAsyncKeyState('H') & 0x8000) {
         if (!g_hKeyPressed) {
-            g_showDebug = !g_showDebug; // 상태 반전
-            g_hKeyPressed = true;       // 키 떼기 전까지 중복 차단
+            g_showDebug = !g_showDebug;
+            g_hKeyPressed = true;
         }
     }
     else {
-        g_hKeyPressed = false; // 키를 떼면 다시 입력 가능한 상태로 전환
+        g_hKeyPressed = false;
     }
 
     if (currentTime - g_lastAutoSpawnTime >= 5000) {
@@ -412,7 +410,6 @@ void RenderFrame(HDC hDC, RECT& rt) {
         }
     }
 
-    // ★ [수정] g_showDebug가 true일 때만 화면 데드라인 출력
     if (g_showDebug) {
         HPEN hGuidePen = CreatePen(PS_DOT, 1, RGB(200, 200, 200));
         HPEN oldPen = (HPEN)SelectObject(memDC, hGuidePen);
@@ -422,7 +419,7 @@ void RenderFrame(HDC hDC, RECT& rt) {
         DeleteObject(hGuidePen);
     }
 
-    // 플레이어 애니메이션 매핑
+    // 플레이어 애니메이션
     SpriteInfo pSprite;
     switch (g_player.state) {
     case PlayerState::IDLE:  pSprite = GetMarioSprite(9);  break;
@@ -440,7 +437,6 @@ void RenderFrame(HDC hDC, RECT& rt) {
         DrawAlphaImage(memDC, pDrawX, pDrawY, pDrawW, pDrawH, img_mario, pSprite.x, pSprite.y, pSprite.w, pSprite.h);
     }
 
-    // ★ [수정] g_showDebug가 true일 때만 플레이어 빨간색 히트박스 출력
     if (g_showDebug) {
         RECT hitBox = g_player.GetHitBox();
         HPEN hRedPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
@@ -477,7 +473,6 @@ void RenderFrame(HDC hDC, RECT& rt) {
             DrawAlphaImage(memDC, eDrawX, eDrawY, eDrawW, eDrawH, img_enemies, eSprite.x, eSprite.y, eSprite.w, eSprite.h);
         }
 
-        // ★ [수정] g_showDebug가 true일 때만 몬스터 초록색 히트박스 출력
         if (g_showDebug) {
             HPEN hGreenPen = CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
             HPEN oldPen = (HPEN)SelectObject(memDC, hGreenPen);
