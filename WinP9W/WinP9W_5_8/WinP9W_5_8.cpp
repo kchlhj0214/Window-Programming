@@ -340,10 +340,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             g_lastMousePos = mousePos;
 
             for (int i = 0; i < ANINUM; ++i) {
-                RECT hitbox = { g_anies[i].x - 28, g_anies[i].y - 28, g_anies[i].x + 28, g_anies[i].y + 28 };
+                RECT hitbox = { g_anies[i].x - (MONSTER_SIZE / 2) + 4, g_anies[i].y + (MONSTER_SIZE / 2) - 8, g_anies[i].x + (MONSTER_SIZE / 2) - 4, g_anies[i].y + (MONSTER_SIZE / 2) - 4 };
                 RECT temp;
-                RECT temptile = { tileRect[g_anies[i].isCatched].left, tileRect[g_anies[i].isCatched].top, tileRect[g_anies[i].isCatched].right, tileRect[g_anies[i].isCatched].top + 4 };
                 if (g_anies[i].isCatched != -1) {
+                    RECT temptile = { tileRect[g_anies[i].isCatched].left, tileRect[g_anies[i].isCatched].top, tileRect[g_anies[i].isCatched].right, tileRect[g_anies[i].isCatched].top + 4 };
                     if (!IntersectRect(&temp, &hitbox, &temptile)) {
                         g_anies[i].isCatched = -1;
                     }
