@@ -17,14 +17,18 @@ using namespace std;
 // 랜덤 장치
 random_device rd;
 mt19937 g(rd());
-uniform_int_distribution<> disX{ 100, 3000 };
+uniform_int_distribution<> disX{ 100, 900 };
+uniform_int_distribution<> disY{ 100, 900 };
+uniform_int_distribution<> color{ 1, 5 };   // 빨 주 노 초 파 / (색상 숫자가 곧 체력이자 데미지)
+uniform_int_distribution<> brick_size{ 0, 2 };  // 정사각형, 가로로 긴 직사각형, 세로로 긴 직사각형
+uniform_int_distribution<> move_disX{ -50, 50 };
+uniform_int_distribution<> move_disY{ -50, 50 };
 
 HINSTANCE g_hInst;
 LPCTSTR lpszClass = L"My Window Class";
 LPCTSTR lpszWindowName = L"windows program 2";
 
-enum class PlayerState { IDLE, RUN, JUMP, SLIDE };
-enum class EnemyType { WALK, FLY };
+enum class Dir { UP, DOWN, LEFT, RIGHT };
 
 struct SpriteInfo {
     int x, y, w, h;
@@ -37,8 +41,12 @@ struct Effect {
 };
 
 // 글로벌 이미지 에셋 변수
-CImage img_back, img_far, img_middle, img_tileset;
-CImage img_mario, img_enemies, img_effect;
+CImage img_back, img_effect, img_brick;
+CImage img_bullet_red, img_bullet_orange, img_bullet_yellow, img_bullet_green, img_bullet_blue;
+// 8프레임
+CImage img_pacman_red, img_pacman_orange, img_pacman_yellow, img_pacman_green, img_pacman_blue;
+// 8프레임
+CImage img_ghost_red, img_ghost_orange, img_ghost_yellow, img_ghost_green, img_ghost_blue;
 
 int g_playerAnimFrame = 0;
 DWORD g_lastPlayerAnimTime = 0;
@@ -46,84 +54,103 @@ DWORD g_lastPlayerAnimTime = 0;
 bool g_showDebug = true;
 bool g_hKeyPressed = false;
 
-struct Player {
+struct Pacman {
     float x, y;
-    float velocityY;
-    PlayerState state;
+    float j_x, j_y;
+    float velocity;
+    float size;
+    bool jump;
+    Dir dir;
+    int color;
+
+    RECT GetHitBox() const {
+        RECT rc;
+        rc.left = (int)x - 50;
+        rc.right = (int)x + 50;
+        rc.bottom = (int)y + 50;
+        rc.top = (int)y - 50;
+
+        return rc;
+    }
+};
+
+struct Ghost {
+    float x, y;     // 현 좌표
+    float mid_x, mid_y; // 고정 중심 좌표
+    Dir dir;
+    int animFrame;
+    DWORD lastAnimTime;
+    bool isDead;
+    float speed;
+    int color;
 
     RECT GetHitBox() const {
         RECT rc;
         rc.left = (int)x - 25;
         rc.right = (int)x + 25;
-        rc.bottom = (int)y;
+        rc.bottom = (int)y + 25;
+        rc.top = (int)y - 25;
 
-        if (state == PlayerState::SLIDE) {
-            rc.top = (int)y - 45;
-        }
-        else {
-            rc.top = (int)y - 95;
-        }
         return rc;
     }
 };
 
-struct Enemy {
+struct Bullet {
     float x, y;
-    EnemyType type;
-    int animFrame;
-    DWORD lastAnimTime;
-    bool isDead;
+    Dir dir;
     float speed;
+    int color;
+
+    RECT GetHitBox() const {        // 추후 테스트 하면서 사이즈 수정
+        RECT rc;
+        rc.left = (int)x - 25;
+        rc.right = (int)x + 25;
+        rc.bottom = (int)y + 25;
+        rc.top = (int)y - 25;
+
+        return rc;
+    }
+};
+
+struct Brick {
+    float x, y;
+    int hp;
+    int color;
+    int size;
 
     RECT GetHitBox() const {
         RECT rc;
-        if (type == EnemyType::WALK) {
-            rc.left = (int)x - 35;
-            rc.right = (int)x + 35;
-            rc.bottom = (int)y;
-            rc.top = (int)y - 85;
+        if(size == 0) {
+            rc.left = (int)x - 25;
+            rc.right = (int)x + 25;
+            rc.bottom = (int)y + 25;
+            rc.top = (int)y - 25;
         }
-        else {
-            rc.left = (int)x - 45;
-            rc.right = (int)x + 45;
-            rc.bottom = (int)y - 10;
-            rc.top = (int)y - 100;
+        else if (size == 1) {
+            rc.left = (int)x - 50;
+            rc.right = (int)x + 50;
+            rc.bottom = (int)y + 25;
+            rc.top = (int)y - 25;
         }
+        else if (size == 2) {
+            rc.left = (int)x - 25;
+            rc.right = (int)x + 25;
+            rc.bottom = (int)y + 50;
+            rc.top = (int)y - 50;
+        }
+
         return rc;
     }
 };
 
-Player g_player;
-vector<Enemy> g_enemies;
+Pacman g_pacman;
+vector<Ghost> g_enemies;
+vector<Bullet> g_bullets;
+vector<Brick> g_bricks;
 vector<Effect> g_effects;
 
-float g_cameraX = 0.0f;
-float g_moveSpeed = 8.0f;
-
-const float DEADZONE_LEFT = LEN * 0.3f;
-const float DEADZONE_RIGHT = LEN * 0.7f;
-
-#define GROUND_Y 750 
-
-DWORD g_lastAutoSpawnTime = 0;
-DWORD g_lastManualSpawnTime = 0;
-const DWORD SPAWN_COOLDOWN = 1000;
-
-int tileData[128] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-    11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11
-};
-
-const int mapWidth = 16;
-const int mapHeight = 8;
-const int tileSize = 32;
-const int mapPixelWidth = mapWidth * tileSize;
+DWORD g_lastShootTime = 0;
+const DWORD SHOOT_COOLDOWN = 500;
 
 void DrawAlphaImage(HDC hdcDest, int nXOriginDest, int nYOriginDest, int nWidthDest, int nHeightDest, CImage& srcImg, int nXOriginSrc, int nYOriginSrc, int nWidthSrc, int nHeightSrc)
 {
@@ -141,46 +168,66 @@ void DrawAlphaImage(HDC hdcDest, int nXOriginDest, int nYOriginDest, int nWidthD
     srcImg.ReleaseDC();
 }
 
-SpriteInfo GetMarioSprite(int num) {
-    int startX = (num - 1) * 32;
-    return { startX, 0, 32, 32 };
+SpriteInfo GetPacmanSprite(int num) {
+    int startX = (num - 1) * 16;
+    return { startX, 0, 16, 16 };
 }
 
-SpriteInfo GetEnemySprite(int num) {
-    int startX = (num - 1) * 32;
-    return { startX, 0, 32, 32 };
+SpriteInfo GetGhostSprite(int num) {
+    int startX = (num - 1) * 16;
+    return { startX, 0, 16, 16 };
 }
 
 SpriteInfo GetEffectSprite(int frame) {
     int startX = frame * 64;
-    return { startX, 384, 64, 64 };
+    return { startX, 576, 64, 64 };
 }
 
-void SpawnEnemy(EnemyType type) {
-    Enemy newEnemy;
-    newEnemy.type = type;
-    newEnemy.x = g_player.x + g_cameraX + 1000.0f;
-    newEnemy.animFrame = 0;
-    newEnemy.lastAnimTime = GetTickCount();
-    newEnemy.isDead = false;
-    newEnemy.speed = 2.5f;
+SpriteInfo GetBrickSprite(int size, int state, int color) {
+    int x, y;
 
-    if (type == EnemyType::WALK) {
-        newEnemy.y = GROUND_Y + 80;
+    if (size == 0) {
+        x = 224 + state * 16;
+        y = 96 - color * 16;
+        return { x, y - 16, 16, 16 };
     }
     else {
-        newEnemy.y = (GROUND_Y + 80) - 50;
+        x = 112 + state * 32;
+        y = 96 - color * 16;
+        return { x, y - 16, 32, 16 };
     }
-    g_enemies.push_back(newEnemy);
+}
+
+void SpawnGhosts() {
+    
+}
+
+void SpawnBricks() {
+
 }
 
 void InitGame() {
-    img_back.Load(TEXT("back.png"));
-    img_far.Load(TEXT("far.png"));
-    img_middle.Load(TEXT("middle.png"));
-    img_tileset.Load(TEXT("tileset.png"));
-    img_mario.Load(TEXT("Mario.png"));
-    img_enemies.Load(TEXT("Enemies.png"));
+    //img_back.Load(TEXT("back.png"));
+    
+    img_bullet_red.Load(TEXT("red_razer.png"));
+    img_bullet_orange.Load(TEXT("orange_razer.png"));
+    img_bullet_yellow.Load(TEXT("yellow_razer.png"));
+    img_bullet_green.Load(TEXT("green_razer.png"));
+    img_bullet_blue.Load(TEXT("blue_razer.png"));
+
+    img_pacman_red.Load(TEXT("PacMan_red.png"));
+    img_pacman_orange.Load(TEXT("PacMan_orange.png"));
+    img_pacman_yellow.Load(TEXT("PacMan_yellow.png"));
+    img_pacman_green.Load(TEXT("PacMan_green.png"));
+    img_pacman_blue.Load(TEXT("PacMan_blue.png"));
+
+    img_ghost_red.Load(TEXT("redGhost.png"));
+    img_ghost_orange.Load(TEXT("orangeGhost.png"));
+    img_ghost_yellow.Load(TEXT("yellowGhost.png"));
+    img_ghost_green.Load(TEXT("greenGhost.png"));
+    img_ghost_blue.Load(TEXT("blueGhost.png"));
+
+    img_brick.Load(TEXT("bricks.png"));
     img_effect.Load(TEXT("Free_Smoke_Fx_Pixel 05.png"));
 
     g_player.x = LEN / 2;
@@ -188,8 +235,7 @@ void InitGame() {
     g_player.velocityY = 0.0f;
     g_player.state = PlayerState::IDLE;
 
-    g_lastAutoSpawnTime = GetTickCount();
-    g_lastManualSpawnTime = GetTickCount();
+    g_lastShootTime = GetTickCount();
 }
 
 void UpdateGame() {
