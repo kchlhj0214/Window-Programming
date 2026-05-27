@@ -1,5 +1,4 @@
-﻿
-#include <windows.h>
+﻿#include <windows.h>
 #include <tchar.h>
 #include <atlimage.h>
 #include <vector>
@@ -9,6 +8,7 @@
 #include <cmath>
 #include <windowsx.h>
 #pragma comment(lib, "msimg32.lib")
+// 디테일한 설정들과 완성도로 가산점
 
 #define LEN 1000
 #define HEI 1000
@@ -1207,7 +1207,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     moved = true;
                 }
             }
-            break;   // 가장 위에 있는 클릭된 장애물만 처리
+            break;
         }
         break;
     }

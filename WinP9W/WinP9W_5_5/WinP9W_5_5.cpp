@@ -5,7 +5,7 @@
 #include <math.h>
 #include <algorithm>
 #include <atlimage.h>
-
+// 고양이 리셋 모션으로 가산점
 
 #define LEN 1000
 #define HEI 1000

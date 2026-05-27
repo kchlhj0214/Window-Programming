@@ -6,6 +6,7 @@
 #include <atlimage.h>
 #include <string>
 #include <vector>
+// 원근 배경 구현과 프레임 높은 애니메이션으로 가산점
 
 #pragma comment (lib, "msimg32.lib")
 
