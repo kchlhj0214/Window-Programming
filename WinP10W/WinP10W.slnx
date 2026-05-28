@@ -3,6 +3,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="WinP10W/WinP10W.vcxproj" />
-  <Project Path="WinP10W_6_1/WinP10W_6_1.vcxproj" />
+  <Project Path="WinP10W/WinP10W.vcxproj" Id="e54485fc-7537-4f24-8eb8-da802509fcfb" />
+  <Project Path="WinP10W_6_1/WinP10W_6_1.vcxproj" Id="aa00176c-7f88-4452-92f2-b6cf05bf30e0" />
 </Solution>
