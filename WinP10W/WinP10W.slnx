@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="WinP10W/WinP10W.vcxproj" />
+  <Project Path="WinP10W_6_1/WinP10W_6_1.vcxproj" />
+</Solution>
