@@ -1,0 +1,121 @@
+// Microsoft Visual C++ generated resource script.
+//
+#pragma code_page(65001)
+
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// 한국어(대한민국) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_KOR)
+LANGUAGE LANG_KOREAN, SUBLANG_DEFAULT
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG1 DIALOGEX 0, 0, 330, 195
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "확인",IDOK,213,174,50,14
+    PUSHBUTTON      "취소",IDCANCEL,273,174,50,14
+    CONTROL         "Red",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,138,50,10
+    CONTROL         "Green",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,85,138,50,10
+    CONTROL         "Blue",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,152,138,50,10
+    CONTROL         "반전",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,219,138,50,10
+    CONTROL         "Sin",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,35,50,39,10
+    CONTROL         "Half-circle",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,84,50,53,10
+    CONTROL         "Spring",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,155,50,44,10
+    CONTROL         "Stair-way",IDC_RADIO4,"Button",BS_AUTORADIOBUTTON,216,50,53,10
+    GROUPBOX        "Static",IDC_STATIC,20,34,267,38
+    PUSHBUTTON      "Move_x",IDC_BUTTON1,19,87,45,27
+    PUSHBUTTON      "Move_y",IDC_BUTTON2,72,87,45,27
+    PUSHBUTTON      "Stop",IDC_BUTTON3,125,87,45,27
+    PUSHBUTTON      "Reset",IDC_BUTTON4,178,87,45,27
+    PUSHBUTTON      "원 이동",IDC_BUTTON5,231,87,45,27
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 323
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 188
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOG1 AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // 한국어(대한민국) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

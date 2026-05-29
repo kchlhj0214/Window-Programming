@@ -5,4 +5,5 @@
   </Configurations>
   <Project Path="WinP10W/WinP10W.vcxproj" Id="e54485fc-7537-4f24-8eb8-da802509fcfb" />
   <Project Path="WinP10W_6_1/WinP10W_6_1.vcxproj" Id="aa00176c-7f88-4452-92f2-b6cf05bf30e0" />
+  <Project Path="WinP10W_6_2/WinP10W_6_2.vcxproj" Id="89ad7c21-0f40-47a6-b3f0-36843c7ad2c1" />
 </Solution>

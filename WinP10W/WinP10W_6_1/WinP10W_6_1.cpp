@@ -29,19 +29,26 @@ LPCTSTR lpszWindowName = L"windows program 2";
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK Dlalog_Proc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
-// --- [전역 상태 변수] ---
 enum DrawMode { MODE_NONE, MODE_DRAW_LINE };
 DrawMode g_CurrentMode = MODE_NONE;
 
-// [변경] 도형 정보: 중심점 좌표와 크기(가로/세로)만 관리
-POINT g_CenterPt = { 60, 60 };  // 기본 중심점 (50,50 위치에 크기 20일 때의 중심)
-int g_ShapeSize = 10;           // 기본 크기 (사이즈 변경 가능)
+POINT g_CenterPt = { 60, 60 };
+int g_ShapeSize = 10;
+bool isRect = true;
+BOOL g_IsMoving = FALSE;
+int speed = 35;
+bool isGrid = true;
+
+double g_CurrentX = 60.0;
+double g_CurrentY = 60.0;
+double g_SpeedX = 0.0;
+double g_SpeedY = 0.0;
 
 // 마우스 드래그 및 선 정보
 BOOL g_isDragging = FALSE;
-POINT g_ptCurrent = { 60, 60 }; // 현재 마우스 위치 (고무줄용)
-POINT g_ptEnd = { 60, 60 };     // 확정된 끝점
-BOOL g_hasLine = FALSE;         // 고정된 선 존재 여부
+POINT g_LineStart = { 60, 60 };
+POINT g_LineEnd = { 60, 60 };
+BOOL g_hasLine = FALSE;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nCmdShow)
 {
@@ -147,7 +154,7 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
 	HDC hDC;
-	RECT updateRect = { 0, 0, 600, 350 };
+	RECT updateRect = { 0, 0, 650, 400 };
 	static int check_rgb[3] = { 0, 0, 0 };
 
 	switch (iMsg) {
@@ -159,24 +166,38 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
 		case IDC_RADIO1:
+			isRect = true;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 			
 			break;
 		case IDC_RADIO2:
+			isRect = false;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 
 			break;
 		case IDC_RADIO3:
+			g_ShapeSize = 10;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 
 			break;
 		case IDC_RADIO4:
+			g_ShapeSize = 20;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 
 			break;
 		case IDC_RADIO5:
+			g_ShapeSize = 30;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 
 			break;
 		case IDC_RADIO6:
+			isGrid = true;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 
 			break;
 		case IDC_RADIO7:
+			isGrid = false;
+			InvalidateRect(hDlg, &updateRect, FALSE);
 			
 			break;
 		case IDC_CHECK1:
@@ -201,21 +222,51 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 			break;
 		case IDC_BUTTON1:
-			g_CurrentMode = MODE_DRAW_LINE;	
+			if (g_IsMoving) {
+				KillTimer(hDlg, 1);
+				g_IsMoving = FALSE;
+			}
+			g_CurrentMode = MODE_DRAW_LINE;
 			InvalidateRect(hDlg, NULL, FALSE);
-
 			break;
 		case IDC_BUTTON2:
+			if (g_LineStart.x == g_LineEnd.x && g_LineStart.y == g_LineEnd.y) break;
 
+			if (g_IsMoving) {
+				// 이동 중일 때 누르면 중간에 정지
+				KillTimer(hDlg, 1);
+				g_IsMoving = FALSE;
+			}
+			else {
+				g_CurrentX = (double)g_CenterPt.x;
+				g_CurrentY = (double)g_CenterPt.y;
+
+				double totalDeltaX = g_LineEnd.x - g_CurrentX;
+				double totalDeltaY = g_LineEnd.y - g_CurrentY;
+				double totalDistance = sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+
+				double baseSpeed = 4.0;
+
+				g_SpeedX = (totalDeltaX / totalDistance) * baseSpeed;
+				g_SpeedY = (totalDeltaY / totalDistance) * baseSpeed;
+
+				SetTimer(hDlg, 1, speed, NULL);
+				g_IsMoving = TRUE;
+			}
 			break;
 		case IDC_BUTTON3:
-
+			if (speed > 20) {
+				speed -= 5;
+				if (g_IsMoving) SetTimer(hDlg, 1, speed, NULL);
+			}
 			break;
 		case IDC_BUTTON4:
-
+			if (speed < 50) {
+				speed += 5;
+				if (g_IsMoving) SetTimer(hDlg, 1, speed, NULL);
+			}
 			break;
-		case IDC_BUTTON5:
-			
+		case IDC_BUTTON5:			
 			EndDialog(hDlg, 0);
 			break;
 		}
@@ -224,18 +275,15 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (g_CurrentMode == MODE_DRAW_LINE) {
 			g_isDragging = TRUE;
 			SetCapture(hDlg);
-
-			g_ptCurrent = g_CenterPt;
+			g_LineStart = g_CenterPt;
+			g_LineEnd = g_CenterPt;
 		}
 		break;
 
 	case WM_MOUSEMOVE:
 		if (g_isDragging) {
 			POINT mousePt = { LOWORD(lParam), HIWORD(lParam) };
-
-			// 🚨 [핵심] 마우스 위치가 가리키는 방향을 유지하되, 경계선 교점 좌표를 고무줄 끝점으로 저장
-			g_ptCurrent = ConstrainLineToRect(g_CenterPt, mousePt);
-
+			g_LineEnd = ConstrainLineToRect(g_LineStart, mousePt);
 			InvalidateRect(hDlg, &updateRect, FALSE);
 		}
 		break;
@@ -246,11 +294,40 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			ReleaseCapture();
 
 			POINT mousePt = { LOWORD(lParam), HIWORD(lParam) };
+			g_LineEnd = ConstrainLineToRect(g_LineStart, mousePt);
 
-			// 🚨 [핵심] 마우스를 뗀 순간의 최종 직선 끝 좌표도 경계선 교점 좌표로 정확히 계산 후 저장!
-			g_ptEnd = ConstrainLineToRect(g_CenterPt, mousePt);
 			g_hasLine = TRUE;
 			g_CurrentMode = MODE_NONE;
+
+			InvalidateRect(hDlg, &updateRect, FALSE);
+		}
+		break;
+
+	case WM_TIMER:
+		if (wParam == 1) {
+			g_CurrentX += g_SpeedX;
+			g_CurrentY += g_SpeedY;
+
+			double remainX = g_LineEnd.x - g_CurrentX;
+			double remainY = g_LineEnd.y - g_CurrentY;
+			double remainDist = sqrt(remainX * remainX + remainY * remainY);
+
+			double stepDist = sqrt(g_SpeedX * g_SpeedX + g_SpeedY * g_SpeedY);
+
+			if (remainDist <= stepDist) {
+				g_CenterPt = g_LineEnd; // 최종 위치 강제 고정
+				g_IsMoving = FALSE;
+				KillTimer(hDlg, 1);
+
+				// 출발점과 끝점 정보 Swap
+				POINT temp = g_LineStart;
+				g_LineStart = g_LineEnd;
+				g_LineEnd = temp;
+			}
+			else {
+				g_CenterPt.x = (long)(g_CurrentX + 0.5);
+				g_CenterPt.y = (long)(g_CurrentY + 0.5);
+			}
 
 			InvalidateRect(hDlg, &updateRect, FALSE);
 		}
@@ -271,43 +348,44 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		HBRUSH hBackBrush = GetSysColorBrush(COLOR_3DFACE);
 		FillRect(hMemDC, &clientRect, hBackBrush);
+		// -------------------------------------------------------------
 
-		// -------------------------------------------------------------
-		// 🚨 [핵심 추가] 전역 변수 rgb_r, g, b를 이용한 브러시 생성 및 적용
-		// -------------------------------------------------------------
 		HBRUSH hShapeBrush = CreateSolidBrush(RGB(rgb_r, rgb_g, rgb_b));
 		HBRUSH hOldBrush = (HBRUSH)SelectObject(hMemDC, hShapeBrush);
-		// -------------------------------------------------------------
 
-		// 1. 도형 그리기 (이제 설정한 rgb 색상으로 내부가 채워집니다)
+		// ----도형 그리기----------------------------------------------
 		int halfSize = g_ShapeSize / 2;
 		RECT drawRect = { g_CenterPt.x - halfSize, g_CenterPt.y - halfSize, g_CenterPt.x + halfSize, g_CenterPt.y + halfSize };
-		Rectangle(hMemDC, drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+		if (isRect) Rectangle(hMemDC, drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+		else Ellipse(hMemDC, drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
-		// -------------------------------------------------------------
-		// 🚨 [주의] 도형을 그린 후 기존 브러시로 원상복구하고 생성한 브러시 삭제
-		// (선이나 다른 요소에 원치 않는 색이 들어가는 것을 방지하고 메모리 누수를 막습니다)
 		// -------------------------------------------------------------
 		SelectObject(hMemDC, hOldBrush);
 		DeleteObject(hShapeBrush);
 		// -------------------------------------------------------------
 
-		// 2. 완성된 고정 선 그리기
-		if (g_hasLine) {
-			MoveToEx(hMemDC, g_CenterPt.x, g_CenterPt.y, NULL);
-			LineTo(hMemDC, g_ptEnd.x, g_ptEnd.y);
-		}
+		// ----선 그리기------------------------------------------------
+		if (g_LineStart.x != g_LineEnd.x || g_LineStart.y != g_LineEnd.y) {
+			HPEN hPen = NULL;
+			HPEN hOldPen = NULL;
 
-		// 3. 드래그 중인 고무줄 선 그리기
-		if (g_isDragging) {
-			HPEN hDotPen = CreatePen(PS_DOT, 1, RGB(255, 0, 0));
-			HPEN hOldPen = (HPEN)SelectObject(hMemDC, hDotPen);
-
-			MoveToEx(hMemDC, g_CenterPt.x, g_CenterPt.y, NULL);
-			LineTo(hMemDC, g_ptCurrent.x, g_ptCurrent.y);
+			if (g_isDragging) {
+				hPen = CreatePen(PS_DOT, 1, RGB(255, 0, 0));
+				hOldPen = (HPEN)SelectObject(hMemDC, hPen);
+				MoveToEx(hMemDC, g_LineStart.x, g_LineStart.y, NULL);
+				LineTo(hMemDC, g_LineEnd.x, g_LineEnd.y);
+			}
+			else {
+				if (isGrid) {
+					hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+					hOldPen = (HPEN)SelectObject(hMemDC, hPen);
+					MoveToEx(hMemDC, g_LineStart.x, g_LineStart.y, NULL);
+					LineTo(hMemDC, g_LineEnd.x, g_LineEnd.y);
+				}
+			}
 
 			SelectObject(hMemDC, hOldPen);
-			DeleteObject(hDotPen);
+			DeleteObject(hPen);
 		}
 
 		BitBlt(hDC, 0, 0, width, height, hMemDC, 0, 0, SRCCOPY);
