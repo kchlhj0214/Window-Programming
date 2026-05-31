@@ -348,6 +348,27 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		HBRUSH hBackBrush = GetSysColorBrush(COLOR_3DFACE);
 		FillRect(hMemDC, &clientRect, hBackBrush);
+		
+
+		// -------------------------------------------------------------
+
+		if (isGrid) {
+			HPEN hPen = NULL;
+			HPEN hOldPen = NULL;
+
+			hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+			hOldPen = (HPEN)SelectObject(hMemDC, hPen);
+
+			for (int i = 0; i < 24; ++i) {
+				for (int j = 0; j < 14; ++j) {
+					Rectangle(hMemDC, i * 25, j * 25, (i + 1) * 25, (j + 1) * 25);
+				}
+			}
+
+			SelectObject(hMemDC, hOldPen);
+			DeleteObject(hPen);
+		}
+
 		// -------------------------------------------------------------
 
 		HBRUSH hShapeBrush = CreateSolidBrush(RGB(rgb_r, rgb_g, rgb_b));
@@ -359,7 +380,6 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (isRect) Rectangle(hMemDC, drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 		else Ellipse(hMemDC, drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
-		// -------------------------------------------------------------
 		SelectObject(hMemDC, hOldBrush);
 		DeleteObject(hShapeBrush);
 		// -------------------------------------------------------------
@@ -376,12 +396,10 @@ BOOL CALLBACK Dlalog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				LineTo(hMemDC, g_LineEnd.x, g_LineEnd.y);
 			}
 			else {
-				if (isGrid) {
-					hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
-					hOldPen = (HPEN)SelectObject(hMemDC, hPen);
-					MoveToEx(hMemDC, g_LineStart.x, g_LineStart.y, NULL);
-					LineTo(hMemDC, g_LineEnd.x, g_LineEnd.y);
-				}
+				hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+				hOldPen = (HPEN)SelectObject(hMemDC, hPen);
+				MoveToEx(hMemDC, g_LineStart.x, g_LineStart.y, NULL);
+				LineTo(hMemDC, g_LineEnd.x, g_LineEnd.y);
 			}
 
 			SelectObject(hMemDC, hOldPen);
