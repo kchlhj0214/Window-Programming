@@ -3,8 +3,8 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="WinP10W/WinP10W.vcxproj" Id="e54485fc-7537-4f24-8eb8-da802509fcfb" />
   <Project Path="WinP10W_6_1/WinP10W_6_1.vcxproj" Id="aa00176c-7f88-4452-92f2-b6cf05bf30e0" />
   <Project Path="WinP10W_6_2/WinP10W_6_2.vcxproj" Id="89ad7c21-0f40-47a6-b3f0-36843c7ad2c1" />
   <Project Path="WinP10W_6_3/WinP10W_6_3.vcxproj" Id="7fe20563-a6f1-453f-925a-a852d6d8b352" />
+  <Project Path="WinP10W_6_4/WinP10W_6_4.vcxproj" Id="e7c46012-28a0-41eb-9270-8e8a068bc5ad" />
 </Solution>
