@@ -10,7 +10,6 @@ using namespace std;
 
 HINSTANCE g_hInst;
 
-// 계산기 상태 관리를 위한 전역 변수
 std::wstring g_CurrentExpr = L"0";
 std::wstring g_DecimalExpr = L""; // 이진수 변환 전 원래 식을 저장할 변수
 bool g_isBinary = false;
@@ -18,7 +17,6 @@ bool g_isBinary = false;
 BOOL CALLBACK Dlalog_Proc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
 // -------------------------------
-// 수식 문자열을 계산하여 double로 반환
 double EvalExpression(std::wstring s) {
     s.erase(remove_if(s.begin(), s.end(), iswspace), s.end());
     if (s.empty()) return 0;
@@ -70,7 +68,6 @@ double EvalExpression(std::wstring s) {
     return values.empty() ? 0 : values.back();
 }
 
-// double 형을 소수점 불필요한 0을 제거한 문자열로 변환
 std::wstring FormatDouble(double d) {
     std::wstring s = std::to_wstring(d);
     s.erase(s.find_last_not_of(L'0') + 1, std::wstring::npos);
@@ -80,7 +77,7 @@ std::wstring FormatDouble(double d) {
 
 // 입력 보조 함수들
 void CheckBinaryMode() {
-    if (g_isBinary) { // 이진수 모드에서 다른 키를 누르면 원래 상태로 복구
+    if (g_isBinary) {
         g_isBinary = false;
         g_CurrentExpr = g_DecimalExpr;
     }
